@@ -1,0 +1,43 @@
+name: poise
+description: "Poise -- personal movement screening app."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Camera feed for live pose detection
+  camera: ^0.11.0
+
+  # Google ML Kit pose detection (device only, simulator stubs in place)
+  google_mlkit_pose_detection: ^0.14.0
+
+  # Syne + DM Sans for the design system
+  google_fonts: ^6.0.0
+
+  # Firebase stack
+  firebase_core: ^3.0.0
+  firebase_auth: ^5.0.0
+  cloud_firestore: ^5.0.0
+  firebase_messaging: ^15.0.0
+
+  # Local push notifications for prehab reminders
+  flutter_local_notifications: ^17.0.0
+
+  # Persist screen history and user prefs locally
+  shared_preferences: ^2.0.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
