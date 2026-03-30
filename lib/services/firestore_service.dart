@@ -29,4 +29,16 @@ class FirestoreService {
         .collection('screens')
         .add(result.toFirestore());
   }
+
+  Future<List<ScreenResult>> getScreenHistory(String uid) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('screens')
+        .orderBy('completedAt', descending: true)
+        .get();
+    return snapshot.docs
+        .map((doc) => ScreenResult.fromFirestore(doc.data()))
+        .toList();
+  }
 }

@@ -1,20 +1,19 @@
-// Entry point. I initialise Firebase before runApp so every service
-// downstream can safely call Firebase APIs synchronously.
+// Entry point. I initialise Firebase and notifications before runApp so every
+// service downstream can safely call their APIs synchronously.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
-
-// AuthScreen and HomeScreen are added in later stages.
-// These stubs keep the app compilable from the very first commit.
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService().init();
 
   // Force the status bar to light text on a transparent background.
   // I do it here AND in PoiseTheme so it applies before the first frame renders.
