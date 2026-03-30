@@ -1,17 +1,273 @@
-// Stub -- full auth UI is built in Stage 2.
-// I just need something here so main.dart compiles and I can do the first commit.
+// ignore_for_file: avoid_print
+// The first screen a new user sees. I want it to feel clean and confident --
+// big wordmark, minimal form, no clutter.
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
-class AuthScreen extends StatelessWidget {
+const _kWordmark = 'Poise.';
+const _kTagline = 'Your personal movement screen.';
+const _kEmailHint = 'Email';
+const _kPasswordHint = 'Password';
+const _kSignUpTab = 'Sign up';
+const _kSignInTab = 'Sign in';
+const _kCreateAccount = 'Create account';
+const _kSignInCta = 'Sign in';
+const _kAppleSignIn = 'Continue with Apple';
+const _kGuestCta = 'Continue without account';
+
+class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
   @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  final _authService = AuthService();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  // I start on the sign-up tab because new users are the happy path.
+  bool _isSignUp = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      if (_isSignUp) {
+        await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        // New users go to onboarding to set their profile before the home screen.
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+          );
+        }
+      } else {
+        await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        // Returning users skip onboarding and go straight to the dashboard.
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _errorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Guest users still go through onboarding so I can capture their sport and goal
+  // locally even without a Firebase account.
+  void _continueAsGuest() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: PoiseColors.background,
-      body: Center(
-        child: CircularProgressIndicator(color: PoiseColors.accent),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 72),
+                  Text(
+                    _kWordmark,
+                    style: GoogleFonts.syne(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w800,
+                      color: PoiseColors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _kTagline,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: PoiseColors.offWhite,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Sign up / Sign in toggle
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _ToggleButton(
+                        label: _kSignUpTab,
+                        selected: _isSignUp,
+                        onTap: () => setState(() => _isSignUp = true),
+                      ),
+                      const SizedBox(width: 24),
+                      _ToggleButton(
+                        label: _kSignInTab,
+                        selected: !_isSignUp,
+                        onTap: () => setState(() => _isSignUp = false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    style: GoogleFonts.dmSans(
+                        color: PoiseColors.offWhite, fontSize: 14),
+                    decoration: const InputDecoration(hintText: _kEmailHint),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    style: GoogleFonts.dmSans(
+                        color: PoiseColors.offWhite, fontSize: 14),
+                    decoration:
+                        const InputDecoration(hintText: _kPasswordHint),
+                  ),
+
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage!,
+                      style: GoogleFonts.dmSans(
+                          color: PoiseColors.error, fontSize: 13),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : Text(_isSignUp ? _kCreateAccount : _kSignInCta),
+                  ),
+
+                  // I only show Apple Sign In on iOS -- the button looks wrong on Android.
+                  if (Platform.isIOS) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Apple Sign In -- requires sign_in_with_apple package, added later.
+                          print('Apple Sign In tapped');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: Text(
+                          _kAppleSignIn,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const Spacer(),
+
+                  // Guest option sits at the bottom so it's available but not the focus.
+                  TextButton(
+                    onPressed: _continueAsGuest,
+                    child: Text(
+                      _kGuestCta,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: PoiseColors.muted,
+                        decoration: TextDecoration.underline,
+                        decorationColor: PoiseColors.muted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// A simple text toggle -- selected state is shown with an underline in accent colour.
+class _ToggleButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ToggleButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: selected ? PoiseColors.offWhite : PoiseColors.muted,
+          decoration:
+              selected ? TextDecoration.underline : TextDecoration.none,
+          decorationColor: PoiseColors.accent,
+          decorationThickness: 2,
+        ),
       ),
     );
   }
