@@ -1,7 +1,8 @@
 // I keep all Firestore reads and writes here so screens never
-// touch the database directly. Screen result methods are added in Stage 8.
+// touch the database directly. getScreenHistory is added in Stage 8.
 // ignore_for_file: avoid_print
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/screen_result.dart';
 import '../models/user_profile.dart';
 
 class FirestoreService {
@@ -19,5 +20,13 @@ class FirestoreService {
     final doc = await _db.collection('users').doc(uid).get();
     if (!doc.exists || doc.data() == null) return null;
     return UserProfile.fromFirestore(doc.data()!);
+  }
+
+  Future<void> saveScreenResult(String uid, ScreenResult result) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('screens')
+        .add(result.toFirestore());
   }
 }
