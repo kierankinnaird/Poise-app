@@ -1,0 +1,23 @@
+// I keep all Firestore reads and writes here so screens never
+// touch the database directly. Screen result methods are added in Stage 8.
+// ignore_for_file: avoid_print
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_profile.dart';
+
+class FirestoreService {
+  final _db = FirebaseFirestore.instance;
+
+  Future<void> saveUserProfile(UserProfile profile) async {
+    // merge: true means I won't wipe fields I didn't include
+    await _db
+        .collection('users')
+        .doc(profile.uid)
+        .set(profile.toFirestore(), SetOptions(merge: true));
+  }
+
+  Future<UserProfile?> getUserProfile(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return UserProfile.fromFirestore(doc.data()!);
+  }
+}
