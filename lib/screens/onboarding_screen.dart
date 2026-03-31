@@ -71,22 +71,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_selectedSport == null || _selectedGoal == null) return;
     setState(() => _isLoading = true);
 
-    // Only persist to Firestore if the user is signed in.
-    // Guests get the personalised screen experience without a saved profile.
-    final user = _authService.currentUser;
-    if (user != null) {
-      try {
-        final profile = UserProfile(
-          uid: user.uid,
-          email: user.email,
-          sport: _selectedSport!,
-          goal: _selectedGoal!,
-          createdAt: DateTime.now(),
-        );
-        await _firestoreService.saveUserProfile(profile);
-      } catch (e) {
-        print('Failed to save profile: $e');
-      }
+    final user = _authService.currentUser!;
+    try {
+      final profile = UserProfile(
+        uid: user.uid,
+        email: user.email,
+        sport: _selectedSport!,
+        goal: _selectedGoal!,
+        createdAt: DateTime.now(),
+      );
+      await _firestoreService.saveUserProfile(profile);
+    } catch (e) {
+      print('Failed to save profile: $e');
     }
 
     if (mounted) {

@@ -18,7 +18,6 @@ const _kSignInTab = 'Sign in';
 const _kCreateAccount = 'Create account';
 const _kSignInCta = 'Sign in';
 const _kAppleSignIn = 'Continue with Apple';
-const _kGuestCta = 'Continue without account';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -78,14 +77,6 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  // Guest users still go through onboarding so I can capture their sport and goal
-  // locally even without a Firebase account.
-  void _continueAsGuest() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-    );
   }
 
   @override
@@ -216,20 +207,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ],
 
                   const Spacer(),
-
-                  // Guest option sits at the bottom so it's available but not the focus.
-                  TextButton(
-                    onPressed: _continueAsGuest,
-                    child: Text(
-                      _kGuestCta,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        color: PoiseColors.muted,
-                        decoration: TextDecoration.underline,
-                        decorationColor: PoiseColors.muted,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 16),
                 ],
               ),

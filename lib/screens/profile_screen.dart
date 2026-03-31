@@ -17,10 +17,7 @@ const _kWeeklyReminder = 'Weekly reminder';
 const _kEvery7Days = 'Every 7 days';
 const _kPrivacyPolicy = 'Privacy policy';
 const _kSignOut = 'Sign out';
-const _kCreateAccount = 'Create account';
 const _kChange = 'Change';
-const _kGuest = 'Guest';
-const _kNotSignedIn = 'Not signed in';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,21 +51,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _displayName(String? email) {
-    if (email == null || email.isEmpty) return _kGuest;
+    if (email == null || email.isEmpty) return '';
     final name = email.split('@').first;
-    if (name.isEmpty) return _kGuest;
+    if (name.isEmpty) return '';
     return '${name[0].toUpperCase()}${name.substring(1)}';
   }
 
   String _initial(String? email) {
     final name = _displayName(email);
-    return name.isNotEmpty ? name[0].toUpperCase() : 'G';
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   @override
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
-    final isGuest = user == null;
     final email = user?.email;
     final displayName = _displayName(email);
     final initial = _initial(email);
@@ -135,9 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isGuest
-                                ? _kNotSignedIn
-                                : (email ?? _kNotSignedIn),
+                            email ?? '',
                             style: GoogleFonts.dmSans(
                               fontSize: 12,
                               color: PoiseColors.muted,
@@ -310,33 +304,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Sign out for signed-in users, create account for guests.
-              if (!isGuest)
-                Container(
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: _AccountRow(
-                    label: _kSignOut,
-                    labelColor: PoiseColors.error,
-                    onTap: _signOut,
-                  ),
-                )
-              else
-                Container(
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: _AccountRow(
-                    label: _kCreateAccount,
-                    labelColor: PoiseColors.accent,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AuthScreen()),
-                    ),
-                  ),
+              Container(
+                decoration: BoxDecoration(
+                  color: PoiseColors.card,
+                  borderRadius: BorderRadius.circular(6),
                 ),
+                child: _AccountRow(
+                  label: _kSignOut,
+                  labelColor: PoiseColors.error,
+                  onTap: _signOut,
+                ),
+              ),
 
               const SizedBox(height: 32),
             ],
