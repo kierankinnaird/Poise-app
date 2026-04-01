@@ -9,7 +9,6 @@ import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
 
-const _kWordmark = 'Poise.';
 const _kTagline = 'Your personal movement screen.';
 const _kEmailHint = 'Email';
 const _kPasswordHint = 'Password';
@@ -96,16 +95,13 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 72),
-                  Text(
-                    _kWordmark,
-                    style: GoogleFonts.syne(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
-                      color: PoiseColors.accent,
-                    ),
+                  const SizedBox(height: 60),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 96,
+                    height: 96,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     _kTagline,
                     style: GoogleFonts.dmSans(

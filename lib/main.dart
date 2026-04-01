@@ -46,7 +46,11 @@ class PoiseApp extends StatelessWidget {
             return const Scaffold(
               backgroundColor: PoiseColors.background,
               body: Center(
-                child: CircularProgressIndicator(color: PoiseColors.accent),
+                child: Image(
+                  image: AssetImage('assets/images/logo.png'),
+                  width: 96,
+                  height: 96,
+                ),
               ),
             );
           }
