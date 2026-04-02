@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../analysis/prehab_generator.dart';
+import '../models/fault.dart';
+import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -109,6 +111,55 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
+  // Groups faults by type and surfaces left/right asymmetry when a fault
+  // only appears on one side. Bilateral faults (same type, both sides) are
+  // shown individually without an asymmetry note since both sides are affected.
+  List<Widget> _buildFaultCards(List<Fault> faults) {
+    final byType = <FaultType, List<Fault>>{};
+    for (final fault in faults) {
+      byType.putIfAbsent(fault.type, () => []).add(fault);
+    }
+
+    final widgets = <Widget>[];
+    for (final group in byType.values) {
+      final sides = group.map((f) => f.side).toSet();
+      // One-sided fault on a unilateral movement = asymmetry worth flagging.
+      final isAsymmetric = sides.length == 1 && sides.first != null;
+
+      for (final fault in group) {
+        widgets.add(Padding(
+          padding: EdgeInsets.only(bottom: isAsymmetric ? 4 : 8),
+          child: FaultCard(fault: fault),
+        ));
+      }
+
+      if (isAsymmetric) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5A623).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: const Color(0xFFF5A623).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Text(
+              'Detected on one side only -- this may indicate a left/right imbalance rather than a general technique issue.',
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: const Color(0xFFF5A623),
+              ),
+            ),
+          ),
+        ));
+      }
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final plan = PrehabGenerator.generate(widget.result.faults);
@@ -157,7 +208,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${widget.result.sport} · ${_formattedDate(widget.result.completedAt)}',
+                '${widget.result.sport} · ${widget.result.movementType.displayName} · ${_formattedDate(widget.result.completedAt)}',
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: PoiseColors.muted,
@@ -244,10 +295,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
                 )
               else
-                ...widget.result.faults.map((fault) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: FaultCard(fault: fault),
-                    )),
+                ..._buildFaultCards(widget.result.faults),
 
               const SizedBox(height: 24),
 
@@ -277,6 +325,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         builder: (_) => ScreenScreen(
                           sport: widget.result.sport,
                           goal: widget.result.goal,
+                          movementType: widget.result.movementType,
                         ),
                       ),
                     );

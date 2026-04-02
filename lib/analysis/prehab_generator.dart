@@ -104,6 +104,131 @@ class PrehabGenerator {
     ),
   ];
 
+  static const _hipDropExercises = [
+    Exercise(
+      name: 'Side-lying Hip Abduction',
+      sets: '3 sets x 15 reps',
+      description:
+          'Lie on side, keep hips stacked, raise top leg to 45 degrees and lower slowly.',
+      targetFault: FaultType.hipDrop,
+    ),
+    Exercise(
+      name: 'Single-leg Deadlift',
+      sets: '3 sets x 8 reps each',
+      description:
+          'Balance on one leg, hinge forward keeping hips level, return to standing.',
+      targetFault: FaultType.hipDrop,
+    ),
+    Exercise(
+      name: 'Lateral Band Walk',
+      sets: '3 sets x 12 reps each',
+      description:
+          'Band around thighs, step sideways keeping pelvis level and knees soft.',
+      targetFault: FaultType.hipDrop,
+    ),
+  ];
+
+  static const _excessiveSwayExercises = [
+    Exercise(
+      name: 'Single-leg Balance with Eyes Closed',
+      sets: '3 sets',
+      duration: '20 sec hold',
+      description:
+          'Stand on one leg, arms at sides, close eyes to challenge proprioception.',
+      targetFault: FaultType.excessiveSway,
+    ),
+    Exercise(
+      name: 'Ankle Alphabet',
+      sets: '2 sets each ankle',
+      description:
+          'Seated or lying, trace the alphabet with your foot to improve ankle mobility.',
+      targetFault: FaultType.excessiveSway,
+    ),
+    Exercise(
+      name: 'Calf Raise Balance',
+      sets: '3 sets x 12 reps',
+      description:
+          'Stand on one leg, rise onto toes slowly and lower with control.',
+      targetFault: FaultType.excessiveSway,
+    ),
+  ];
+
+  static const _armFallForwardExercises = [
+    Exercise(
+      name: 'Wall Angel',
+      sets: '3 sets x 10 reps',
+      description:
+          'Back against wall, slide arms overhead keeping wrists and elbows in contact with wall.',
+      targetFault: FaultType.armFallForward,
+    ),
+    Exercise(
+      name: 'Shoulder Dislocates with Band',
+      sets: '3 sets x 10 reps',
+      description:
+          'Hold band wide with straight arms, rotate overhead and behind in a controlled arc.',
+      targetFault: FaultType.armFallForward,
+    ),
+    Exercise(
+      name: 'Thoracic Rotation Stretch',
+      sets: '3 sets x 5 reps each',
+      duration: '5 sec hold',
+      description:
+          'Seated or kneeling, rotate upper back through full range, hands behind head.',
+      targetFault: FaultType.armFallForward,
+    ),
+  ];
+
+  static const _limitedRotationExercises = [
+    Exercise(
+      name: 'Doorway Shoulder Stretch',
+      sets: '3 sets',
+      duration: '30 sec hold',
+      description:
+          'Place forearm on door frame at 90 degrees, rotate body away to open the chest and stretch the shoulder.',
+      targetFault: FaultType.limitedRotation,
+    ),
+    Exercise(
+      name: 'Sleeper Stretch',
+      sets: '3 sets',
+      duration: '30 sec hold',
+      description:
+          'Lie on side with arm out at shoulder height, use other hand to gently rotate forearm toward the floor.',
+      targetFault: FaultType.limitedRotation,
+    ),
+    Exercise(
+      name: 'Band External Rotation',
+      sets: '3 sets x 15 reps',
+      description:
+          'Anchor band at elbow height, elbow at 90 degrees by side, rotate forearm outward against resistance.',
+      targetFault: FaultType.limitedRotation,
+    ),
+  ];
+
+  static const _excessiveKneeBendExercises = [
+    Exercise(
+      name: 'Romanian Deadlift',
+      sets: '3 sets x 10 reps',
+      description:
+          'Hold dumbbells at thighs, push hips back and lower weights down legs with soft knees -- not a squat.',
+      targetFault: FaultType.excessiveKneeBend,
+    ),
+    Exercise(
+      name: 'Hip Hinge Wall Drill',
+      sets: '3 sets x 10 reps',
+      description:
+          'Stand 30cm from wall, push hips back to touch the wall without bending knees excessively.',
+      targetFault: FaultType.excessiveKneeBend,
+    ),
+    Exercise(
+      name: 'Hamstring Stretch',
+      sets: '3 sets',
+      duration: '30 sec hold',
+      description:
+          'Seated or lying, extend one leg and flex the foot, reaching toward toes to stretch the hamstring.',
+      targetFault: FaultType.excessiveKneeBend,
+    ),
+  ];
+
   static const _warmupExercise = Exercise(
     name: 'Squat Warmup Flow',
     sets: '1 set',
@@ -126,13 +251,19 @@ class PrehabGenerator {
       FaultType.depth: _depthExercises,
       FaultType.forwardLean: _forwardLeanExercises,
       FaultType.heelRise: _heelRiseExercises,
+      FaultType.hipDrop: _hipDropExercises,
+      FaultType.excessiveSway: _excessiveSwayExercises,
+      FaultType.armFallForward: _armFallForwardExercises,
+      FaultType.limitedRotation: _limitedRotationExercises,
+      FaultType.excessiveKneeBend: _excessiveKneeBendExercises,
     };
 
     // With more than 2 faults I take 1 exercise each, otherwise 2 each.
     final exercisesPerFault = faultTypes.length > 2 ? 1 : 2;
 
     for (final type in faultTypes) {
-      final pool = exerciseMap[type]!;
+      final pool = exerciseMap[type];
+      if (pool == null) continue;
       exercises.addAll(pool.take(exercisesPerFault.clamp(0, pool.length)));
       if (exercises.length >= 5) break;
     }

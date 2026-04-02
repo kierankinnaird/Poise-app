@@ -9,8 +9,13 @@ import 'package:camera/camera.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../analysis/landmark_smoother.dart';
+import '../analysis/hip_hinge_analyser.dart';
+import '../analysis/lunge_analyser.dart';
+import '../analysis/shoulder_rotation_analyser.dart';
+import '../analysis/single_leg_stand_analyser.dart';
 import '../analysis/squat_analyser.dart';
 import '../models/fault.dart';
+import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pose_painter.dart';
@@ -19,14 +24,19 @@ import 'results_screen.dart';
 const int _kTargetReps = 5;
 const int _kCountdownSeconds = 10;
 const _kGetReady = 'Get ready.';
-const _kStandInFrame = 'Stand with your full body in frame.';
 const _kEndScreen = 'End screen';
 
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
+  final MovementType movementType;
 
-  const ScreenScreen({super.key, required this.sport, required this.goal});
+  const ScreenScreen({
+    super.key,
+    required this.sport,
+    required this.goal,
+    this.movementType = MovementType.squat,
+  });
 
   @override
   State<ScreenScreen> createState() => _ScreenScreenState();
@@ -58,11 +68,128 @@ class _ScreenScreenState extends State<ScreenScreen>
     options: PoseDetectorOptions(mode: PoseDetectionMode.stream),
   );
   final _smoother = LandmarkSmoother(windowSize: 5);
-  final _analyser = SquatAnalyser();
+
+  SquatAnalyser? _squatAnalyser;
+  LungeAnalyser? _lungeAnalyser;
+  SingleLegStandAnalyser? _singleLegStandAnalyser;
+  ShoulderRotationAnalyser? _shoulderRotationAnalyser;
+  HipHingeAnalyser? _hipHingeAnalyser;
+
+  // Timed movement state (single leg stand).
+  Timer? _holdTimer;
+  int _holdSecondsRemaining = 15;
+  bool _holdTimerActive = false;
+
+  int get _currentReps {
+    if (_squatAnalyser != null) return _squatAnalyser!.repCount;
+    if (_lungeAnalyser != null) return _lungeAnalyser!.activeRepCount;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeRepCount;
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.repCount;
+    return 0;
+  }
+
+  int get _totalReps {
+    if (_squatAnalyser != null) return _squatAnalyser!.repCount;
+    if (_lungeAnalyser != null) return _lungeAnalyser!.leftRepCount + _lungeAnalyser!.rightRepCount;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.leftRepCount + _shoulderRotationAnalyser!.rightRepCount;
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.repCount;
+    return 0;
+  }
+
+  bool get _inMovement {
+    if (_squatAnalyser != null) return _squatAnalyser!.inSquat;
+    if (_lungeAnalyser != null) return _lungeAnalyser!.inLunge;
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.inStance;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.inRaise;
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.inHinge;
+    return false;
+  }
+
+  Set<FaultType> get _activeFaults {
+    if (_squatAnalyser != null) return _squatAnalyser!.activeFaults;
+    if (_lungeAnalyser != null) return _lungeAnalyser!.activeFaults;
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.activeFaults;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeFaults;
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.activeFaults;
+    return {};
+  }
+
+  String? get _activeSide {
+    if (_lungeAnalyser != null) return _lungeAnalyser!.activeSide;
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.activeSide;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeSide;
+    return null;
+  }
+
+  List<Fault> _buildFaultList() {
+    if (_squatAnalyser != null) return _squatAnalyser!.buildFaultList();
+    if (_lungeAnalyser != null) return _lungeAnalyser!.buildFaultList();
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.buildFaultList();
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.buildFaultList();
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.buildFaultList();
+    return [];
+  }
+
+  List<FaultType> get _relevantFaults {
+    switch (widget.movementType) {
+      case MovementType.lunge:
+        return [FaultType.kneeCave, FaultType.hipDrop, FaultType.forwardLean, FaultType.heelRise];
+      case MovementType.singleLegStand:
+        return [FaultType.excessiveSway];
+      case MovementType.hipHinge:
+        return [FaultType.excessiveKneeBend, FaultType.kneeCave, FaultType.heelRise];
+      case MovementType.shoulderRotation:
+        return [FaultType.limitedRotation];
+      default:
+        return [FaultType.kneeCave, FaultType.depth, FaultType.forwardLean, FaultType.heelRise];
+    }
+  }
+
+  String get _movementStatusLabel {
+    if (widget.movementType.isTimed) {
+      return _holdTimerActive ? 'Balancing' : 'Lift your foot';
+    }
+    if (!_inMovement) {
+      return widget.movementType == MovementType.shoulderRotation ? 'At rest' : 'Standing';
+    }
+    switch (widget.movementType) {
+      case MovementType.lunge: return 'Lunging';
+      case MovementType.hipHinge: return 'Hinging';
+      case MovementType.shoulderRotation: return 'Raising';
+      default: return 'Squatting';
+    }
+  }
+
+  // The value shown in the large display -- rep count for most, countdown for timed.
+  String get _mainDisplayValue {
+    if (widget.movementType.isTimed) return '$_holdSecondsRemaining';
+    return '$_currentReps';
+  }
+
+  // Sub-label below the main value.
+  String get _mainDisplaySublabel {
+    if (widget.movementType.isTimed) {
+      return _holdTimerActive ? 'sec remaining' : 'sec hold';
+    }
+    return _movementStatusLabel;
+  }
 
   @override
   void initState() {
     super.initState();
+    switch (widget.movementType) {
+      case MovementType.lunge:
+        _lungeAnalyser = LungeAnalyser();
+      case MovementType.singleLegStand:
+        _singleLegStandAnalyser = SingleLegStandAnalyser();
+        _holdSecondsRemaining = widget.movementType.holdSeconds;
+      case MovementType.shoulderRotation:
+        _shoulderRotationAnalyser = ShoulderRotationAnalyser();
+      case MovementType.hipHinge:
+        _hipHingeAnalyser = HipHingeAnalyser();
+      default:
+        _squatAnalyser = SquatAnalyser();
+    }
     _overlayFadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -143,13 +270,7 @@ class _ScreenScreenState extends State<ScreenScreen>
           _controller!.value.previewSize!.height,
           _controller!.value.previewSize!.width,
         );
-        final newRep =
-            _analyser.analyseFrame(smoothedLandmarks.first, imageSize);
-
-        if (newRep && _analyser.repCount >= _kTargetReps && !_navigated) {
-          _navigated = true;
-          _navigateToResults();
-        }
+        _processAnalysis(smoothedLandmarks.first, imageSize);
       }
 
       if (mounted && !_navigated) {
@@ -160,6 +281,92 @@ class _ScreenScreenState extends State<ScreenScreen>
     } finally {
       _isDetecting = false;
     }
+  }
+
+  void _processAnalysis(Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
+    if (_squatAnalyser != null) {
+      final newRep = _squatAnalyser!.analyseFrame(landmarks, imageSize);
+      if (newRep && _squatAnalyser!.repCount >= _kTargetReps && !_navigated) {
+        _navigated = true;
+        _navigateToResults();
+      }
+    } else if (_lungeAnalyser != null) {
+      _handleUnilateralRep(
+        newRep: _lungeAnalyser!.analyseFrame(landmarks, imageSize),
+        activeSide: _lungeAnalyser!.activeSide,
+        leftReps: _lungeAnalyser!.leftRepCount,
+        rightReps: _lungeAnalyser!.rightRepCount,
+        switchSide: _lungeAnalyser!.switchSide,
+      );
+    } else if (_shoulderRotationAnalyser != null) {
+      _handleUnilateralRep(
+        newRep: _shoulderRotationAnalyser!.analyseFrame(landmarks, imageSize),
+        activeSide: _shoulderRotationAnalyser!.activeSide,
+        leftReps: _shoulderRotationAnalyser!.leftRepCount,
+        rightReps: _shoulderRotationAnalyser!.rightRepCount,
+        switchSide: _shoulderRotationAnalyser!.switchSide,
+      );
+    } else if (_hipHingeAnalyser != null) {
+      final newRep = _hipHingeAnalyser!.analyseFrame(landmarks, imageSize);
+      if (newRep && _hipHingeAnalyser!.repCount >= _kTargetReps && !_navigated) {
+        _navigated = true;
+        _navigateToResults();
+      }
+    } else if (_singleLegStandAnalyser != null) {
+      final inStance = _singleLegStandAnalyser!.analyseFrame(landmarks, imageSize);
+      if (inStance && !_holdTimerActive) {
+        _startHoldTimer();
+      } else if (!inStance && _holdTimerActive) {
+        _cancelHoldTimer();
+      }
+    }
+  }
+
+  void _handleUnilateralRep({
+    required bool newRep,
+    required String activeSide,
+    required int leftReps,
+    required int rightReps,
+    required VoidCallback switchSide,
+  }) {
+    if (!newRep) return;
+    final sideReps = activeSide == 'left' ? leftReps : rightReps;
+    if (activeSide == 'left' && sideReps >= _kTargetReps) {
+      switchSide();
+      if (mounted) setState(() {});
+    } else if (activeSide == 'right' && sideReps >= _kTargetReps && !_navigated) {
+      _navigated = true;
+      _navigateToResults();
+    }
+  }
+
+  void _startHoldTimer() {
+    _holdTimerActive = true;
+    _holdTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() => _holdSecondsRemaining--);
+      if (_holdSecondsRemaining <= 0) {
+        timer.cancel();
+        _holdTimerActive = false;
+        if (_singleLegStandAnalyser!.activeSide == 'left') {
+          _singleLegStandAnalyser!.switchSide();
+          setState(() => _holdSecondsRemaining = widget.movementType.holdSeconds);
+        } else if (!_navigated) {
+          _navigated = true;
+          _navigateToResults();
+        }
+      }
+    });
+  }
+
+  void _cancelHoldTimer() {
+    _holdTimer?.cancel();
+    _holdTimerActive = false;
+    // Reset the countdown -- the user must hold continuously.
+    if (mounted) setState(() => _holdSecondsRemaining = widget.movementType.holdSeconds);
   }
 
   InputImage? _inputImageFromCamera(CameraImage image) {
@@ -182,12 +389,13 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _navigateToResults() {
-    final faults = _analyser.buildFaultList();
+    final faults = _buildFaultList();
     final score = ScreenResult.calculateScore(faults);
     final result = ScreenResult(
       sport: widget.sport,
       goal: widget.goal,
-      repCount: _analyser.repCount,
+      movementType: widget.movementType,
+      repCount: widget.movementType.isTimed ? 0 : _totalReps,
       faults: faults,
       completedAt: DateTime.now(),
       score: score,
@@ -209,6 +417,7 @@ class _ScreenScreenState extends State<ScreenScreen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _holdTimer?.cancel();
     _overlayFadeController.dispose();
     _controller?.stopImageStream();
     _controller?.dispose();
@@ -218,14 +427,15 @@ class _ScreenScreenState extends State<ScreenScreen>
 
   String _faultLabel(FaultType type) {
     switch (type) {
-      case FaultType.kneeCave:
-        return 'Knee cave';
-      case FaultType.depth:
-        return 'Depth';
-      case FaultType.forwardLean:
-        return 'Forward lean';
-      case FaultType.heelRise:
-        return 'Heel rise';
+      case FaultType.kneeCave: return 'Knee cave';
+      case FaultType.depth: return 'Depth';
+      case FaultType.forwardLean: return 'Forward lean';
+      case FaultType.heelRise: return 'Heel rise';
+      case FaultType.hipDrop: return 'Hip drop';
+      case FaultType.excessiveSway: return 'Excessive sway';
+      case FaultType.armFallForward: return 'Arms falling';
+      case FaultType.limitedRotation: return 'Limited reach';
+      case FaultType.excessiveKneeBend: return 'Knee bend';
     }
   }
 
@@ -298,7 +508,8 @@ class _ScreenScreenState extends State<ScreenScreen>
 
     final previewSize = _controller!.value.previewSize!;
     final imageSize = Size(previewSize.height, previewSize.width);
-    final repsToGo = (_kTargetReps - _analyser.repCount).clamp(0, _kTargetReps);
+    final repsToGo = (_kTargetReps - _currentReps).clamp(0, _kTargetReps);
+    final side = _activeSide;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -321,8 +532,8 @@ class _ScreenScreenState extends State<ScreenScreen>
               painter: PosePainterDelegate(
                 smoothedLandmarks: _smoothedLandmarks,
                 imageSize: imageSize,
-                inSquat: _analyser.inSquat,
-                activeFaults: Set.from(_analyser.activeFaults),
+                inSquat: _inMovement,
+                activeFaults: Set.from(_activeFaults),
               ),
             ),
 
@@ -360,9 +571,9 @@ class _ScreenScreenState extends State<ScreenScreen>
             left: 16,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: FaultType.values.map((type) {
+              children: _relevantFaults.map((type) {
                 final isActive =
-                    _analysisActive && _analyser.activeFaults.contains(type);
+                    _analysisActive && _activeFaults.contains(type);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Container(
@@ -422,7 +633,7 @@ class _ScreenScreenState extends State<ScreenScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_analyser.repCount}',
+                  _mainDisplayValue,
                   style: GoogleFonts.syne(
                     fontSize: 56,
                     fontWeight: FontWeight.w800,
@@ -431,19 +642,31 @@ class _ScreenScreenState extends State<ScreenScreen>
                   ),
                 ),
                 Text(
-                  _analyser.inSquat ? 'Squatting' : 'Standing',
+                  _mainDisplaySublabel,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: PoiseColors.offWhite,
                   ),
                 ),
-                Text(
-                  '$repsToGo reps to complete',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: PoiseColors.muted,
+                if (side != null)
+                  Text(
+                    widget.movementType == MovementType.shoulderRotation
+                        ? '${side.toUpperCase()} ARM'
+                        : '${side.toUpperCase()} LEG',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: PoiseColors.accent,
+                    ),
                   ),
-                ),
+                if (!widget.movementType.isTimed)
+                  Text(
+                    '$repsToGo reps to complete',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: PoiseColors.muted,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -484,11 +707,12 @@ class _ScreenScreenState extends State<ScreenScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _kStandInFrame,
+                        widget.movementType.setupInstruction,
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: PoiseColors.offWhite,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
                       Text(

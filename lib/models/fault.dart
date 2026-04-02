@@ -12,6 +12,10 @@ enum FaultType {
   excessiveSway,
   // Overhead squat
   armFallForward,
+  // Shoulder rotation
+  limitedRotation,
+  // Hip hinge
+  excessiveKneeBend,
 }
 
 enum FaultSeverity { mild, moderate, significant }
@@ -106,6 +110,26 @@ class Fault {
           name: 'Arms Falling Forward',
           description:
               'Your arms are dropping forward during the overhead squat, indicating limited shoulder or thoracic mobility.',
+          severity: severity,
+          framesDetected: framesDetected,
+          side: side,
+        );
+      case FaultType.limitedRotation:
+        return Fault(
+          type: type,
+          name: 'Limited Overhead Reach$sideLabel',
+          description:
+              'Your arm is not reaching full overhead position, indicating restricted shoulder flexion or rotation range.',
+          severity: severity,
+          framesDetected: framesDetected,
+          side: side,
+        );
+      case FaultType.excessiveKneeBend:
+        return Fault(
+          type: type,
+          name: 'Excessive Knee Bend',
+          description:
+              'Your knees are bending too much during the hinge, turning it into a squat pattern. Focus on pushing hips back rather than knees forward.',
           severity: severity,
           framesDetected: framesDetected,
           side: side,

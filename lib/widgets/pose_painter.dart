@@ -23,6 +23,29 @@ class PosePainter {
       [PoseLandmarkType.leftAnkle, PoseLandmarkType.leftHeel],
       [PoseLandmarkType.rightAnkle, PoseLandmarkType.rightHeel],
     ],
+    FaultType.hipDrop: [
+      [PoseLandmarkType.leftHip, PoseLandmarkType.rightHip],
+    ],
+    FaultType.excessiveSway: [
+      [PoseLandmarkType.leftAnkle, PoseLandmarkType.leftKnee],
+      [PoseLandmarkType.rightAnkle, PoseLandmarkType.rightKnee],
+    ],
+    FaultType.armFallForward: [
+      [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftElbow],
+      [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightElbow],
+    ],
+    FaultType.limitedRotation: [
+      [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftElbow],
+      [PoseLandmarkType.leftElbow, PoseLandmarkType.leftWrist],
+      [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightElbow],
+      [PoseLandmarkType.rightElbow, PoseLandmarkType.rightWrist],
+    ],
+    FaultType.excessiveKneeBend: [
+      [PoseLandmarkType.leftHip, PoseLandmarkType.leftKnee],
+      [PoseLandmarkType.leftKnee, PoseLandmarkType.leftAnkle],
+      [PoseLandmarkType.rightHip, PoseLandmarkType.rightKnee],
+      [PoseLandmarkType.rightKnee, PoseLandmarkType.rightAnkle],
+    ],
   };
 }
 

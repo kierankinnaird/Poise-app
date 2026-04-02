@@ -2,6 +2,7 @@
 // shown in a list outside of the HistoryScreen itself.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../theme/app_theme.dart';
 
@@ -57,9 +58,9 @@ class ScreenHistoryTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    result.sport,
+                    '${result.sport} · ${result.movementType.displayName}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: PoiseColors.muted,
                     ),
                   ),

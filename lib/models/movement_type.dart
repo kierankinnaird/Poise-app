@@ -3,8 +3,11 @@
 enum MovementType {
   squat,
   lunge,
-  singleLegSquat,
   singleLegStand,
+  hipHinge,
+  shoulderRotation,
+  // Not yet offered -- analysers not built.
+  singleLegSquat,
   overheadSquat,
 }
 
@@ -15,10 +18,14 @@ extension MovementTypeX on MovementType {
         return 'Squat';
       case MovementType.lunge:
         return 'Lunge';
-      case MovementType.singleLegSquat:
-        return 'Single Leg Squat';
       case MovementType.singleLegStand:
         return 'Single Leg Stand';
+      case MovementType.hipHinge:
+        return 'Hip Hinge';
+      case MovementType.shoulderRotation:
+        return 'Shoulder Rotation';
+      case MovementType.singleLegSquat:
+        return 'Single Leg Squat';
       case MovementType.overheadSquat:
         return 'Overhead Squat';
     }
@@ -31,10 +38,14 @@ extension MovementTypeX on MovementType {
         return 'Stand with feet shoulder-width apart, toes slightly out.';
       case MovementType.lunge:
         return 'Stand tall. Step forward into a lunge -- 5 reps each leg.';
-      case MovementType.singleLegSquat:
-        return 'Balance on one leg, arms forward for balance. 5 reps each leg.';
       case MovementType.singleLegStand:
         return 'Balance on one leg, arms at your sides. 15 seconds each leg.';
+      case MovementType.hipHinge:
+        return 'Feet hip-width apart. Push hips back and hinge forward, keeping back flat. 5 reps.';
+      case MovementType.shoulderRotation:
+        return 'Raise each arm fully overhead and rotate back down. 5 reps each side.';
+      case MovementType.singleLegSquat:
+        return 'Balance on one leg, arms forward for balance. 5 reps each leg.';
       case MovementType.overheadSquat:
         return 'Raise both arms fully overhead. Keep them there throughout.';
     }
@@ -46,8 +57,10 @@ extension MovementTypeX on MovementType {
       case MovementType.lunge:
       case MovementType.singleLegSquat:
       case MovementType.singleLegStand:
+      case MovementType.shoulderRotation:
         return true;
       case MovementType.squat:
+      case MovementType.hipHinge:
       case MovementType.overheadSquat:
         return false;
     }
@@ -55,6 +68,19 @@ extension MovementTypeX on MovementType {
 
   // Single leg stand is timed rather than rep-counted.
   bool get isTimed => this == MovementType.singleLegStand;
+
+  // Icon used in the movement picker.
+  String get emoji {
+    switch (this) {
+      case MovementType.squat: return '🏋️';
+      case MovementType.lunge: return '🦵';
+      case MovementType.singleLegStand: return '🧍';
+      case MovementType.hipHinge: return '🔄';
+      case MovementType.shoulderRotation: return '💪';
+      case MovementType.singleLegSquat: return '🦵';
+      case MovementType.overheadSquat: return '🏋️';
+    }
+  }
 
   // Target reps per side (or total for bilateral). 0 for timed movements.
   int get targetReps {
