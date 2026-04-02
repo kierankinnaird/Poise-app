@@ -1,11 +1,13 @@
-// A completed squat screen. I store this both in Firestore (for signed-in users)
+// A completed movement screen. I store this both in Firestore (for signed-in users)
 // and in SharedPreferences as JSON (for guests and offline fallback).
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fault.dart';
+import 'movement_type.dart';
 
 class ScreenResult {
   final String sport;
   final String goal;
+  final MovementType movementType;
   final int repCount;
   final List<Fault> faults;
   final DateTime completedAt;
@@ -14,6 +16,7 @@ class ScreenResult {
   const ScreenResult({
     required this.sport,
     required this.goal,
+    this.movementType = MovementType.squat,
     required this.repCount,
     required this.faults,
     required this.completedAt,
@@ -32,6 +35,7 @@ class ScreenResult {
     return {
       'sport': sport,
       'goal': goal,
+      'movementType': movementType.storageKey,
       'repCount': repCount,
       'faults': faults.map((f) => f.toMap()).toList(),
       'completedAt': Timestamp.fromDate(completedAt),
@@ -49,6 +53,8 @@ class ScreenResult {
     return ScreenResult(
       sport: data['sport'] as String? ?? '',
       goal: data['goal'] as String? ?? '',
+      movementType: MovementTypeX.fromStorageKey(
+          data['movementType'] as String? ?? ''),
       repCount: data['repCount'] as int? ?? 0,
       faults: faultList,
       completedAt: completedAt,
@@ -61,6 +67,7 @@ class ScreenResult {
     return {
       'sport': sport,
       'goal': goal,
+      'movementType': movementType.storageKey,
       'repCount': repCount,
       'faults': faults.map((f) => f.toMap()).toList(),
       'completedAt': completedAt.toIso8601String(),
@@ -75,6 +82,8 @@ class ScreenResult {
     return ScreenResult(
       sport: data['sport'] as String? ?? '',
       goal: data['goal'] as String? ?? '',
+      movementType: MovementTypeX.fromStorageKey(
+          data['movementType'] as String? ?? ''),
       repCount: data['repCount'] as int? ?? 0,
       faults: faultList,
       completedAt: DateTime.parse(data['completedAt'] as String),

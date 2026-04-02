@@ -1,7 +1,18 @@
-// The four squat faults I screen for. FaultType drives everything downstream --
-// the analyser detects them, the results screen displays them, and the prehab
-// generator maps them to corrective exercises.
-enum FaultType { kneeCave, depth, forwardLean, heelRise }
+// FaultType covers all movements. Not every fault applies to every movement --
+// each analyser only emits the faults relevant to its movement.
+enum FaultType {
+  // Shared across movements
+  kneeCave,
+  forwardLean,
+  heelRise,
+  hipDrop,
+  // Squat / overhead squat
+  depth,
+  // Single leg stand
+  excessiveSway,
+  // Overhead squat
+  armFallForward,
+}
 
 enum FaultSeverity { mild, moderate, significant }
 
@@ -11,6 +22,8 @@ class Fault {
   final String description;
   final FaultSeverity severity;
   final int framesDetected;
+  // 'left' or 'right' for unilateral movements, null for bilateral.
+  final String? side;
 
   const Fault({
     required this.type,
@@ -18,48 +31,84 @@ class Fault {
     required this.description,
     required this.severity,
     required this.framesDetected,
+    this.side,
   });
 
-  // I build a Fault from its type and frame count so the analyser doesn't
-  // need to know the display strings.
-  static Fault fromType(FaultType type, int framesDetected) {
+  static Fault fromType(FaultType type, int framesDetected, {String? side}) {
     final severity = _severityFromFrames(framesDetected);
+    final sideLabel = side != null
+        ? ' (${side[0].toUpperCase()}${side.substring(1)})'
+        : '';
     switch (type) {
       case FaultType.kneeCave:
         return Fault(
           type: type,
-          name: 'Knee Cave',
+          name: 'Knee Cave$sideLabel',
           description:
-              'Your knees are collapsing inward during the squat, increasing stress on the knee joint.',
+              'Your knee is collapsing inward, increasing stress on the knee joint.',
           severity: severity,
           framesDetected: framesDetected,
+          side: side,
         );
       case FaultType.depth:
         return Fault(
           type: type,
           name: 'Insufficient Depth',
           description:
-              'Your hips are not reaching parallel depth, reducing the effectiveness of the squat.',
+              'Your hips are not reaching parallel depth, reducing the effectiveness of the movement.',
           severity: severity,
           framesDetected: framesDetected,
+          side: side,
         );
       case FaultType.forwardLean:
         return Fault(
           type: type,
-          name: 'Forward Lean',
+          name: 'Forward Lean$sideLabel',
           description:
               'Your torso is leaning excessively forward, placing extra load on the lower back.',
           severity: severity,
           framesDetected: framesDetected,
+          side: side,
         );
       case FaultType.heelRise:
         return Fault(
           type: type,
-          name: 'Heel Rise',
+          name: 'Heel Rise$sideLabel',
           description:
-              'Your heels are lifting off the ground, indicating limited ankle dorsiflexion.',
+              'Your heel is lifting off the ground, indicating limited ankle dorsiflexion.',
           severity: severity,
           framesDetected: framesDetected,
+          side: side,
+        );
+      case FaultType.hipDrop:
+        return Fault(
+          type: type,
+          name: 'Hip Drop$sideLabel',
+          description:
+              'Your pelvis is dropping to one side, indicating weak hip abductors (glute med).',
+          severity: severity,
+          framesDetected: framesDetected,
+          side: side,
+        );
+      case FaultType.excessiveSway:
+        return Fault(
+          type: type,
+          name: 'Excessive Sway$sideLabel',
+          description:
+              'Your body is swaying significantly during the balance hold, indicating limited ankle stability.',
+          severity: severity,
+          framesDetected: framesDetected,
+          side: side,
+        );
+      case FaultType.armFallForward:
+        return Fault(
+          type: type,
+          name: 'Arms Falling Forward',
+          description:
+              'Your arms are dropping forward during the overhead squat, indicating limited shoulder or thoracic mobility.',
+          severity: severity,
+          framesDetected: framesDetected,
+          side: side,
         );
     }
   }
@@ -78,6 +127,7 @@ class Fault {
       'description': description,
       'severity': severity.name,
       'framesDetected': framesDetected,
+      if (side != null) 'side': side,
     };
   }
 
@@ -91,6 +141,7 @@ class Fault {
       description: map['description'] as String,
       severity: severity,
       framesDetected: map['framesDetected'] as int,
+      side: map['side'] as String?,
     );
   }
 }
