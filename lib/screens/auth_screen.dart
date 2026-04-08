@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 // The first screen a new user sees. I want it to feel clean and confident --
 // big wordmark, minimal form, no clutter.
 import 'dart:io';
@@ -40,6 +39,27 @@ class _AuthScreenState extends State<AuthScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final result = await _authService.signInWithApple();
+      if (!mounted) return;
+      final isNew = result.isNewUser;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => isNew ? const OnboardingScreen() : const HomeScreen(),
+        ),
+      );
+    } catch (e) {
+      setState(() => _errorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -179,10 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // Apple Sign In -- requires sign_in_with_apple package, added later.
-                          print('Apple Sign In tapped');
-                        },
+                        onPressed: _isLoading ? null : _signInWithApple,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
