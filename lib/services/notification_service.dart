@@ -1,6 +1,7 @@
 // Singleton so init() is only called once regardless of how many times
 // the service is instantiated across the app.
 // ignore_for_file: avoid_print
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -27,6 +28,18 @@ class NotificationService {
       iOS: iosSettings,
     );
     await _plugin.initialize(initSettings);
+  }
+
+  // Returns true if permission was granted (or already granted on Android).
+  Future<bool> requestPermission() async {
+    if (Platform.isIOS) {
+      final result = await _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      return result ?? false;
+    }
+    return true;
   }
 
   Future<void> scheduleRescreenReminder() async {

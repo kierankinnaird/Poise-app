@@ -39,6 +39,9 @@ dependencies:
   # SHA-256 nonce generation for Apple Sign In
   crypto: ^3.0.0
 
+  # Open privacy policy in browser
+  url_launcher: ^6.0.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

@@ -2,6 +2,7 @@
 // Profile screen: avatar, name, sport edit shortcut, notification toggle, account actions.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -56,10 +57,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _toggleNotifications(bool value) async {
-    setState(() => _notificationsEnabled = value);
     if (value) {
+      final granted = await _notificationService.requestPermission();
+      if (!granted) return;
+      setState(() => _notificationsEnabled = true);
       await _notificationService.scheduleRescreenReminder();
     } else {
+      setState(() => _notificationsEnabled = false);
       await _notificationService.cancelAll();
     }
   }
@@ -334,7 +338,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     GestureDetector(
                       onTap: () => Navigator.of(context)
                           .push(MaterialPageRoute(
-                              builder: (_) => const OnboardingScreen()))
+                              builder: (_) => OnboardingScreen(
+                                    initialSport: _profile?.sport,
+                                    initialGoal: _profile?.goal,
+                                  )))
                           .then((_) => _loadProfile()),
                       child: Text(
                         _kChange,
@@ -426,34 +433,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   labelColor: PoiseColors.offWhite,
                   trailing: const Icon(Icons.chevron_right,
                       color: PoiseColors.muted, size: 20),
-                  onTap: () => showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: PoiseColors.card,
-                      title: Text(
-                        'Privacy Policy',
-                        style: GoogleFonts.syne(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: PoiseColors.offWhite,
-                        ),
-                      ),
-                      content: Text(
-                        'Your data is stored securely and never shared with third parties.',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, color: PoiseColors.muted),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(
-                            'Close',
-                            style:
-                                GoogleFonts.dmSans(color: PoiseColors.accent),
-                          ),
-                        ),
-                      ],
-                    ),
+                  onTap: () => launchUrl(
+                    Uri.parse('https://getpoise.app/privacy'),
+                    mode: LaunchMode.externalApplication,
                   ),
                 ),
               ),

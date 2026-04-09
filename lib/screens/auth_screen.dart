@@ -1,6 +1,7 @@
 // The first screen a new user sees. I want it to feel clean and confident --
 // big wordmark, minimal form, no clutter.
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
@@ -31,6 +32,32 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // I start on the sign-up tab because new users are the happy path.
   bool _isSignUp = true;
+
+  String _friendlyAuthError(Object e) {
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'invalid-email':
+          return 'Please enter a valid email address.';
+        case 'email-already-in-use':
+          return 'An account already exists with this email.';
+        case 'weak-password':
+          return 'Password must be at least 6 characters.';
+        case 'user-not-found':
+        case 'wrong-password':
+        case 'invalid-credential':
+          return 'Incorrect email or password.';
+        case 'user-disabled':
+          return 'This account has been disabled.';
+        case 'too-many-requests':
+          return 'Too many attempts. Please try again later.';
+        case 'network-request-failed':
+          return 'Check your internet connection and try again.';
+        default:
+          return 'Something went wrong. Please try again.';
+      }
+    }
+    return 'Something went wrong. Please try again.';
+  }
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -56,7 +83,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      setState(() => _errorMessage = _friendlyAuthError(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -92,7 +119,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      setState(() => _errorMessage = _friendlyAuthError(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

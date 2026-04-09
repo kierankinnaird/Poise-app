@@ -16,6 +16,7 @@ import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'history_screen.dart';
 import 'onboarding_screen.dart';
+import 'screen_screen.dart';
 import 'profile_screen.dart';
 
 const _kPrefLastResult = 'last_screen_result';
@@ -46,15 +47,38 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final _authService = AuthService();
+  final _firestoreService = FirestoreService();
+
+  // Navigates to ScreenScreen if the user has a saved profile,
+  // otherwise goes through onboarding to collect sport/goal first.
+  Future<void> _startScreen() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      final profile = await _firestoreService.getUserProfile(user.uid);
+      if (!mounted) return;
+      if (profile != null && profile.sport.isNotEmpty) {
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+                builder: (_) => ScreenScreen(
+                    sport: profile.sport, goal: profile.goal)))
+            .then((_) {
+          if (mounted) setState(() => _selectedIndex = 0);
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const OnboardingScreen()))
+        .then((_) {
+      if (mounted) setState(() => _selectedIndex = 0);
+    });
+  }
 
   void _onTabTapped(int index) {
-    // The Screen tab (index 1) is not a real tab -- it pushes a new route.
     if (index == 1) {
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const OnboardingScreen()))
-          .then((_) {
-        if (mounted) setState(() => _selectedIndex = 0);
-      });
+      _startScreen();
       return;
     }
     setState(() => _selectedIndex = index);
@@ -225,6 +249,17 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
   }
 
   void _goToScreen() {
+    final profile = _profile;
+    if (profile != null && profile.sport.isNotEmpty) {
+      Navigator.of(context)
+          .push(MaterialPageRoute(
+              builder: (_) =>
+                  ScreenScreen(sport: profile.sport, goal: profile.goal)))
+          .then((_) {
+        if (mounted) _loadData();
+      });
+      return;
+    }
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const OnboardingScreen()))
         .then((_) {
