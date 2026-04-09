@@ -10,7 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../analysis/prehab_generator.dart';
 import '../models/prehab_plan.dart';
 import '../models/screen_result.dart';
+import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'history_screen.dart';
 import 'onboarding_screen.dart';
@@ -148,6 +150,8 @@ class _HomeHubScreen extends StatefulWidget {
 
 class _HomeHubScreenState extends State<_HomeHubScreen> {
   final _authService = AuthService();
+  final _firestoreService = FirestoreService();
+  UserProfile? _profile;
   ScreenResult? _lastResult;
   List<ScreenResult> _history = [];
   bool _loading = true;
@@ -160,6 +164,12 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
 
   Future<void> _loadData() async {
     try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        final profile = await _firestoreService.getUserProfile(user.uid);
+        if (mounted) setState(() => _profile = profile);
+      }
+
       final prefs = await SharedPreferences.getInstance();
 
       final lastJson = prefs.getString(_kPrefLastResult);
@@ -191,19 +201,20 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
     }
   }
 
-  // Derive a first name from the email prefix, fall back to "You".
   String _firstName() {
-    final user = _authService.currentUser;
-    if (user == null) return 'You';
-    final email = user.email ?? '';
-    final name = email.split('@').first;
-    if (name.isEmpty) return 'You';
-    return '${name[0].toUpperCase()}${name.substring(1)}';
+    // Prefer profile name, fall back to email prefix, then "You".
+    if (_profile?.name != null && _profile!.name!.isNotEmpty) {
+      return _profile!.name!;
+    }
+    final email = _authService.currentUser?.email ?? '';
+    final prefix = email.split('@').first;
+    if (prefix.isEmpty) return 'You';
+    return '${prefix[0].toUpperCase()}${prefix.substring(1)}';
   }
 
   String _initial() {
     final name = _firstName();
-    return name.isNotEmpty ? name[0].toUpperCase() : 'Y';
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   int get _screenCount => _history.length;
