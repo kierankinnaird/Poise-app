@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../analysis/prehab_generator.dart';
+import '../models/movement_type.dart';
 import '../models/prehab_plan.dart';
 import '../models/screen_result.dart';
 import '../models/user_profile.dart';
@@ -21,8 +22,7 @@ import 'profile_screen.dart';
 
 const _kPrefLastResult = 'last_screen_result';
 const _kPrefHistory = 'screen_history';
-const _kNoScreensYet = 'No screens yet';
-const _kNoScreensBody = 'Complete your first screen to get started.';
+const _kHowItWorks = 'HOW IT WORKS';
 const _kStartLabel = 'Start a screen';
 const _kStartSub = 'Takes about 2 minutes';
 const _kScreensDone = 'Screens done';
@@ -30,7 +30,6 @@ const _kAvgScore = 'Avg score';
 const _kPlanLabel = 'YOUR PREHAB PLAN';
 const _kNoPlan = 'Complete a screen to get your plan.';
 const _kLastScreen = 'LAST SCREEN';
-const _kSquatScreen = 'Squat Screen';
 
 Color _scoreColor(int score) {
   if (score >= 80) return PoiseColors.accent;
@@ -128,8 +127,10 @@ class _PoiseBottomNav extends StatelessWidget {
       Icons.person,
     ];
 
+    const labels = ['Home', 'Screen', 'Progress', 'Profile'];
+
     return Container(
-      height: 64 + MediaQuery.of(context).padding.bottom,
+      height: 72 + MediaQuery.of(context).padding.bottom,
       decoration: const BoxDecoration(
         color: PoiseColors.card,
         border: Border(top: BorderSide(color: Color(0xFF2A2A28), width: 1)),
@@ -141,19 +142,26 @@ class _PoiseBottomNav extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(icons.length, (i) {
             final active = selectedIndex == i;
+            final color = active ? PoiseColors.accent : PoiseColors.muted;
             return GestureDetector(
               onTap: () => onTap(i),
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                width: 56,
-                height: 56,
-                child: Center(
-                  child: Icon(
-                    icons[i],
-                    size: 24,
-                    color:
-                        active ? PoiseColors.accent : PoiseColors.muted,
-                  ),
+                width: 64,
+                height: 64,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icons[i], size: 22, color: color),
+                    const SizedBox(height: 3),
+                    Text(
+                      labels[i],
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        color: color,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -331,46 +339,9 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Last screen card
+              // How it works for first-timers, last screen card for returning users.
               if (result == null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _kLastScreen,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: PoiseColors.muted,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _kNoScreensYet,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: PoiseColors.offWhite,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _kNoScreensBody,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: PoiseColors.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
+                const _HowItWorksCard()
               else
                 _LastScreenCard(result: result),
 
@@ -486,6 +457,119 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
   }
 }
 
+// Shown to first-time users in place of the last screen card.
+// Three numbered steps explaining what to expect.
+class _HowItWorksCard extends StatelessWidget {
+  const _HowItWorksCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PoiseColors.card,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _kHowItWorks,
+            style: GoogleFonts.dmSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: PoiseColors.muted,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _HowItWorksStep(
+            number: '1',
+            title: 'Point your front camera at yourself',
+            body: 'Stand a few metres back so your whole body is in frame.',
+          ),
+          const SizedBox(height: 12),
+          _HowItWorksStep(
+            number: '2',
+            title: 'Perform 5 simple movements',
+            body: 'Squat, lunge, hip hinge, single leg balance, and shoulder reach. On-screen prompts guide you through each one.',
+          ),
+          const SizedBox(height: 12),
+          _HowItWorksStep(
+            number: '3',
+            title: 'Get your score and exercise plan',
+            body: 'We detect movement faults and prescribe corrective exercises tailored to what we find.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HowItWorksStep extends StatelessWidget {
+  final String number;
+  final String title;
+  final String body;
+
+  const _HowItWorksStep({
+    required this.number,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: PoiseColors.accent,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: GoogleFonts.syne(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: PoiseColors.offWhite,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: PoiseColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LastScreenCard extends StatelessWidget {
   final ScreenResult result;
 
@@ -525,7 +609,7 @@ class _LastScreenCard extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                _kSquatScreen,
+                result.movementType.displayName,
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: PoiseColors.offWhite,

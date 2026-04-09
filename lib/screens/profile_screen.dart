@@ -2,6 +2,7 @@
 // Profile screen: avatar, name, sport edit shortcut, notification toggle, account actions.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
@@ -15,6 +16,7 @@ const _kTitle = 'Profile.';
 const _kMySport = 'MY SPORT';
 const _kRescreenReminders = 'RESCREEN REMINDERS';
 const _kAccount = 'ACCOUNT';
+const _kEraseHistory = 'Erase history';
 const _kWeeklyReminder = 'Weekly reminder';
 const _kEvery7Days = 'Every 7 days';
 const _kPrivacyPolicy = 'Privacy policy';
@@ -65,6 +67,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       setState(() => _notificationsEnabled = false);
       await _notificationService.cancelAll();
+    }
+  }
+
+  Future<void> _eraseHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: PoiseColors.card,
+        title: Text(
+          'Erase history?',
+          style: GoogleFonts.syne(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: PoiseColors.offWhite,
+          ),
+        ),
+        content: Text(
+          'This will permanently delete all your past screens and progress. This cannot be undone.',
+          style: GoogleFonts.dmSans(fontSize: 14, color: PoiseColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: PoiseColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Erase',
+                style: GoogleFonts.dmSans(color: PoiseColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('screen_history');
+      await prefs.remove('last_screen_result');
+
+      final user = _authService.currentUser;
+      if (user != null) {
+        await _firestoreService.deleteScreenHistory(user.uid);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('History erased.',
+                style: GoogleFonts.dmSans(color: PoiseColors.offWhite)),
+            backgroundColor: PoiseColors.card,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Failed to erase history: $e');
     }
   }
 
@@ -437,6 +497,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Uri.parse('https://getpoise.app/privacy'),
                     mode: LaunchMode.externalApplication,
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: PoiseColors.card,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: _AccountRow(
+                  label: _kEraseHistory,
+                  labelColor: PoiseColors.error,
+                  onTap: _eraseHistory,
                 ),
               ),
               const SizedBox(height: 8),

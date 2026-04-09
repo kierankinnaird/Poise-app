@@ -30,6 +30,19 @@ class FirestoreService {
         .add(result.toFirestore());
   }
 
+  Future<void> deleteScreenHistory(String uid) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('screens')
+        .get();
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   Future<List<ScreenResult>> getScreenHistory(String uid) async {
     final snapshot = await _db
         .collection('users')
