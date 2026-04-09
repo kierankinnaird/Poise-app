@@ -59,7 +59,7 @@ class NotificationService {
     await _plugin.periodicallyShow(
       _rescreenNotificationId,
       'Time for your Poise screen',
-      'Check your movement quality -- it only takes 2 minutes.',
+      'Check your movement quality, it only takes 2 minutes.',
       RepeatInterval.weekly,
       details,
       androidScheduleMode: AndroidScheduleMode.inexact,

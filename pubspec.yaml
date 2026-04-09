@@ -42,6 +42,9 @@ dependencies:
   # Open privacy policy in browser
   url_launcher: ^6.0.0
 
+  # Line charts for the progress dashboard
+  fl_chart: ^0.69.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

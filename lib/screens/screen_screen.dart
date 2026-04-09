@@ -436,6 +436,48 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _navigateToResults() {
+    // Guard: if no reps were completed in any movement, the screen has no valid
+    // data. A completed prior movement sets _currentMovementIndex > 0 or adds
+    // to _allFaults. _currentReps > 0 means reps were done in the current movement.
+    final hasData =
+        _currentMovementIndex > 0 || _currentReps > 0 || _allFaults.isNotEmpty;
+    if (!hasData) {
+      if (mounted) {
+        showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: PoiseColors.card,
+            title: Text(
+              'No exercises completed',
+              style: GoogleFonts.syne(
+                color: PoiseColors.offWhite,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              'Complete at least one movement to save your results.',
+              style: GoogleFonts.dmSans(
+                  color: PoiseColors.muted, fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // close dialog
+                  Navigator.of(context).pop(); // exit screen
+                },
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.dmSans(color: PoiseColors.accent),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     final score = ScreenResult.calculateScore(_allFaults);
     final result = ScreenResult(
       sport: widget.sport,

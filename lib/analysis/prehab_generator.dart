@@ -49,7 +49,7 @@ class PrehabGenerator {
       name: 'Ankle Dorsiflexion Drill',
       sets: '3 sets x 12 reps',
       description:
-          'Knee-to-wall drill -- drive knee over little toe without heel lifting.',
+          'Knee-to-wall drill: drive knee over little toe without heel lifting.',
       targetFault: FaultType.depth,
     ),
   ];
@@ -209,7 +209,7 @@ class PrehabGenerator {
       name: 'Romanian Deadlift',
       sets: '3 sets x 10 reps',
       description:
-          'Hold dumbbells at thighs, push hips back and lower weights down legs with soft knees -- not a squat.',
+          'Hold dumbbells at thighs, push hips back and lower weights down legs with soft knees. Not a squat.',
       targetFault: FaultType.excessiveKneeBend,
     ),
     Exercise(

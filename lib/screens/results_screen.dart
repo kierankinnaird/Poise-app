@@ -148,7 +148,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
             child: Text(
-              'Detected on one side only -- this may indicate a left/right imbalance rather than a general technique issue.',
+              'Detected on one side only. This may indicate a left/right imbalance rather than a general technique issue.',
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: const Color(0xFFF5A623),

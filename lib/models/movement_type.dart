@@ -41,7 +41,7 @@ extension MovementTypeX on MovementType {
       case MovementType.squat:
         return 'Stand with feet shoulder-width apart, toes slightly out.';
       case MovementType.lunge:
-        return 'Stand tall. Step forward into a lunge -- 5 reps each leg.';
+        return 'Stand tall. Step forward into a lunge, 5 reps each leg.';
       case MovementType.singleLegStand:
         return 'Balance on one leg, arms at your sides. 15 seconds each leg.';
       case MovementType.hipHinge:

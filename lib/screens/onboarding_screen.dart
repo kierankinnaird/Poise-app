@@ -15,8 +15,8 @@ const _kStep2Of2 = 'STEP 2 OF 2';
 const _kSportHeading = "What's your\nmain sport?";
 const _kSportSubtitle = "We'll tailor your screen to your movement demands.";
 const _kGoalHeading = "What's your\nmain goal?";
-const _kCtaNext = 'Next -- my goal';
-const _kCtaStart = 'Start screen';
+const _kCtaNext = 'Next: my goal';
+const _kCtaStart = 'Done';
 
 const _kSports = ['Football', 'Running', 'CrossFit', 'Rugby', 'Gym', 'Other'];
 
