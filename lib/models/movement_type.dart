@@ -9,6 +9,8 @@ enum MovementType {
   // Not yet offered -- analysers not built.
   singleLegSquat,
   overheadSquat,
+  // Represents a full screen (all movements run in sequence).
+  fullScreen,
 }
 
 extension MovementTypeX on MovementType {
@@ -28,6 +30,8 @@ extension MovementTypeX on MovementType {
         return 'Single Leg Squat';
       case MovementType.overheadSquat:
         return 'Overhead Squat';
+      case MovementType.fullScreen:
+        return 'Full Screen';
     }
   }
 
@@ -48,6 +52,8 @@ extension MovementTypeX on MovementType {
         return 'Balance on one leg, arms forward for balance. 5 reps each leg.';
       case MovementType.overheadSquat:
         return 'Raise both arms fully overhead. Keep them there throughout.';
+      case MovementType.fullScreen:
+        return '';
     }
   }
 
@@ -62,6 +68,7 @@ extension MovementTypeX on MovementType {
       case MovementType.squat:
       case MovementType.hipHinge:
       case MovementType.overheadSquat:
+      case MovementType.fullScreen:
         return false;
     }
   }
@@ -79,6 +86,7 @@ extension MovementTypeX on MovementType {
       case MovementType.shoulderRotation: return '💪';
       case MovementType.singleLegSquat: return '🦵';
       case MovementType.overheadSquat: return '🏋️';
+      case MovementType.fullScreen: return '🏃';
     }
   }
 

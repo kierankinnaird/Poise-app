@@ -16,6 +16,7 @@ import '../theme/app_theme.dart';
 import '../widgets/exercise_card.dart';
 import '../widgets/fault_card.dart';
 import 'history_screen.dart';
+import 'home_screen.dart';
 import 'screen_screen.dart';
 
 const _kPrefLastResult = 'last_screen_result';
@@ -325,7 +326,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         builder: (_) => ScreenScreen(
                           sport: widget.result.sport,
                           goal: widget.result.goal,
-                          movementType: widget.result.movementType,
                         ),
                       ),
                     );
@@ -359,8 +359,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Center(
                   child: TextButton(
                     onPressed: () {
-                      Navigator.of(context)
-                          .popUntil((route) => route.isFirst);
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        (route) => false,
+                      );
                     },
                     child: Text(
                       _kBackToHome,

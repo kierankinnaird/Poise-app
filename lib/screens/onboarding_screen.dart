@@ -4,34 +4,19 @@
 // -- they still get a personalised screen, just nothing persisted.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/movement_type.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'screen_screen.dart';
 
-const _kStep1Of3 = 'STEP 1 OF 3';
-const _kStep2Of3 = 'STEP 2 OF 3';
-const _kStep3Of3 = 'STEP 3 OF 3';
+const _kStep1Of2 = 'STEP 1 OF 2';
+const _kStep2Of2 = 'STEP 2 OF 2';
 const _kSportHeading = "What's your\nmain sport?";
 const _kSportSubtitle = "We'll tailor your screen to your movement demands.";
 const _kGoalHeading = "What's your\nmain goal?";
-const _kMovementHeading = "Pick your\nmovement screen.";
-const _kMovementSubtitle = "Each screen targets different movement faults.";
 const _kCtaNext = 'Next -- my goal';
-const _kCtaNextMovement = 'Next -- pick movement';
 const _kCtaStart = 'Start screen';
-
-// Only movements with an analyser built -- overhead squat and single leg stand
-// require additional work before they can be offered.
-const _kMovements = [
-  MovementType.squat,
-  MovementType.lunge,
-  MovementType.singleLegStand,
-  MovementType.hipHinge,
-  MovementType.shoulderRotation,
-];
 
 const _kSports = ['Football', 'Running', 'CrossFit', 'Rugby', 'Gym', 'Other'];
 
@@ -70,7 +55,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _step = 1;
   String? _selectedSport;
   String? _selectedGoal;
-  MovementType? _selectedMovement;
   bool _isLoading = false;
 
   final _authService = AuthService();
@@ -84,7 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _proceed() async {
-    if (_selectedSport == null || _selectedGoal == null || _selectedMovement == null) return;
+    if (_selectedSport == null || _selectedGoal == null) return;
     setState(() => _isLoading = true);
 
     final user = _authService.currentUser!;
@@ -108,7 +92,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           builder: (_) => ScreenScreen(
             sport: _selectedSport!,
             goal: _selectedGoal!,
-            movementType: _selectedMovement!,
           ),
         ),
       );
@@ -120,11 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: PoiseColors.background,
       body: SafeArea(
-        child: _step == 1
-            ? _buildStep1()
-            : _step == 2
-                ? _buildStep2()
-                : _buildStep3(),
+        child: _step == 1 ? _buildStep1() : _buildStep2(),
       ),
     );
   }
@@ -142,7 +121,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 48),
                 Center(
                   child: Text(
-                    _kStep1Of3,
+                    _kStep1Of2,
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -222,7 +201,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    _kStep2Of3,
+                    _kStep2Of2,
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -294,128 +273,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: ElevatedButton(
-            onPressed: _selectedGoal != null
-                ? () => setState(() => _step = 3)
-                : null,
-            style: ElevatedButton.styleFrom(
-              disabledBackgroundColor: PoiseColors.card,
-              disabledForegroundColor: PoiseColors.muted,
-            ),
-            child: Text(
-              _kCtaNextMovement,
-              style: GoogleFonts.syne(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep3() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back,
-                          color: PoiseColors.offWhite),
-                      onPressed: () => setState(() => _step = 2),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    _kStep3Of3,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: PoiseColors.muted,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  _kMovementHeading,
-                  style: GoogleFonts.syne(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800,
-                    color: PoiseColors.offWhite,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _kMovementSubtitle,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    color: PoiseColors.muted,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                ..._kMovements.map((movement) {
-                  final selected = _selectedMovement == movement;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedMovement = movement),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: PoiseColors.card,
-                          borderRadius: BorderRadius.circular(6),
-                          border: selected
-                              ? Border.all(
-                                  color: PoiseColors.accent, width: 1.5)
-                              : null,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              movement.displayName,
-                              style: GoogleFonts.syne(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: selected
-                                    ? PoiseColors.accent
-                                    : PoiseColors.muted,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              movement.setupInstruction,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                color: PoiseColors.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: ElevatedButton(
-            onPressed:
-                _selectedMovement != null && !_isLoading ? _proceed : null,
+            onPressed: _selectedGoal != null && !_isLoading ? _proceed : null,
             style: ElevatedButton.styleFrom(
               disabledBackgroundColor: PoiseColors.card,
               disabledForegroundColor: PoiseColors.muted,
@@ -424,19 +282,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.black),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                   )
                 : Text(
                     _kCtaStart,
-                    style: GoogleFonts.syne(
-                        fontSize: 15, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.syne(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
           ),
         ),
       ],
     );
   }
+
 }
 
 class _SportGrid extends StatelessWidget {

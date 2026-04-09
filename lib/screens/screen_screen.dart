@@ -1,7 +1,8 @@
 // ignore_for_file: avoid_print
-// The live camera screen. I start the camera feed immediately during the
-// countdown so the preview is live before analysis begins. On simulator
-// I show a placeholder because MLKit pose detection requires a real device.
+// The live camera screen. Runs all 5 movements in sequence -- squat, lunge,
+// hip hinge, single leg stand, shoulder rotation. Between movements a
+// transition overlay prompts the user to get ready for the next one.
+// On simulator I show a placeholder because MLKit requires a real device.
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -23,19 +24,29 @@ import 'results_screen.dart';
 
 const int _kTargetReps = 5;
 const int _kCountdownSeconds = 10;
+const int _kTransitionCountdownSeconds = 5;
 const _kGetReady = 'Get ready.';
 const _kEndScreen = 'End screen';
+const _kMovementComplete = 'Movement complete';
+const _kUpNext = 'Up next';
+const _kReady = 'I\'m ready';
+
+const _kAllMovements = [
+  MovementType.squat,
+  MovementType.lunge,
+  MovementType.hipHinge,
+  MovementType.singleLegStand,
+  MovementType.shoulderRotation,
+];
 
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
-  final MovementType movementType;
 
   const ScreenScreen({
     super.key,
     required this.sport,
     required this.goal,
-    this.movementType = MovementType.squat,
   });
 
   @override
@@ -44,7 +55,6 @@ class ScreenScreen extends StatefulWidget {
 
 class _ScreenScreenState extends State<ScreenScreen>
     with SingleTickerProviderStateMixin {
-  // I detect simulator at runtime so I can skip camera init and show a placeholder.
   static bool get _isSimulator =>
       Platform.isIOS &&
       Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
@@ -55,8 +65,15 @@ class _ScreenScreenState extends State<ScreenScreen>
 
   List<Map<PoseLandmarkType, Offset>> _smoothedLandmarks = [];
   bool _isDetecting = false;
-  bool _navigated = false;
 
+  // Movement sequencing
+  int _currentMovementIndex = 0;
+  final List<Fault> _allFaults = [];
+  bool _showingTransition = false;
+  int _transitionCountdown = _kTransitionCountdownSeconds;
+  Timer? _transitionTimer;
+
+  // Per-movement countdown
   bool _countdownActive = true;
   int _countdownValue = _kCountdownSeconds;
   bool _analysisActive = false;
@@ -80,18 +97,13 @@ class _ScreenScreenState extends State<ScreenScreen>
   int _holdSecondsRemaining = 15;
   bool _holdTimerActive = false;
 
+  MovementType get _currentMovement => _kAllMovements[_currentMovementIndex];
+  bool get _isLastMovement => _currentMovementIndex == _kAllMovements.length - 1;
+
   int get _currentReps {
     if (_squatAnalyser != null) return _squatAnalyser!.repCount;
     if (_lungeAnalyser != null) return _lungeAnalyser!.activeRepCount;
     if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeRepCount;
-    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.repCount;
-    return 0;
-  }
-
-  int get _totalReps {
-    if (_squatAnalyser != null) return _squatAnalyser!.repCount;
-    if (_lungeAnalyser != null) return _lungeAnalyser!.leftRepCount + _lungeAnalyser!.rightRepCount;
-    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.leftRepCount + _shoulderRotationAnalyser!.rightRepCount;
     if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.repCount;
     return 0;
   }
@@ -131,7 +143,7 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   List<FaultType> get _relevantFaults {
-    switch (widget.movementType) {
+    switch (_currentMovement) {
       case MovementType.lunge:
         return [FaultType.kneeCave, FaultType.hipDrop, FaultType.forwardLean, FaultType.heelRise];
       case MovementType.singleLegStand:
@@ -146,13 +158,13 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   String get _movementStatusLabel {
-    if (widget.movementType.isTimed) {
+    if (_currentMovement.isTimed) {
       return _holdTimerActive ? 'Balancing' : 'Lift your foot';
     }
     if (!_inMovement) {
-      return widget.movementType == MovementType.shoulderRotation ? 'At rest' : 'Standing';
+      return _currentMovement == MovementType.shoulderRotation ? 'At rest' : 'Standing';
     }
-    switch (widget.movementType) {
+    switch (_currentMovement) {
       case MovementType.lunge: return 'Lunging';
       case MovementType.hipHinge: return 'Hinging';
       case MovementType.shoulderRotation: return 'Raising';
@@ -160,15 +172,13 @@ class _ScreenScreenState extends State<ScreenScreen>
     }
   }
 
-  // The value shown in the large display -- rep count for most, countdown for timed.
   String get _mainDisplayValue {
-    if (widget.movementType.isTimed) return '$_holdSecondsRemaining';
+    if (_currentMovement.isTimed) return '$_holdSecondsRemaining';
     return '$_currentReps';
   }
 
-  // Sub-label below the main value.
   String get _mainDisplaySublabel {
-    if (widget.movementType.isTimed) {
+    if (_currentMovement.isTimed) {
       return _holdTimerActive ? 'sec remaining' : 'sec hold';
     }
     return _movementStatusLabel;
@@ -177,19 +187,7 @@ class _ScreenScreenState extends State<ScreenScreen>
   @override
   void initState() {
     super.initState();
-    switch (widget.movementType) {
-      case MovementType.lunge:
-        _lungeAnalyser = LungeAnalyser();
-      case MovementType.singleLegStand:
-        _singleLegStandAnalyser = SingleLegStandAnalyser();
-        _holdSecondsRemaining = widget.movementType.holdSeconds;
-      case MovementType.shoulderRotation:
-        _shoulderRotationAnalyser = ShoulderRotationAnalyser();
-      case MovementType.hipHinge:
-        _hipHingeAnalyser = HipHingeAnalyser();
-      default:
-        _squatAnalyser = SquatAnalyser();
-    }
+    _initAnalyser(_currentMovement);
     _overlayFadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -200,6 +198,29 @@ class _ScreenScreenState extends State<ScreenScreen>
       curve: Curves.easeOut,
     );
     if (!_isSimulator) _initCamera();
+  }
+
+  void _initAnalyser(MovementType movement) {
+    _squatAnalyser = null;
+    _lungeAnalyser = null;
+    _singleLegStandAnalyser = null;
+    _shoulderRotationAnalyser = null;
+    _hipHingeAnalyser = null;
+
+    switch (movement) {
+      case MovementType.lunge:
+        _lungeAnalyser = LungeAnalyser();
+      case MovementType.singleLegStand:
+        _singleLegStandAnalyser = SingleLegStandAnalyser();
+        _holdSecondsRemaining = movement.holdSeconds;
+        _holdTimerActive = false;
+      case MovementType.shoulderRotation:
+        _shoulderRotationAnalyser = ShoulderRotationAnalyser();
+      case MovementType.hipHinge:
+        _hipHingeAnalyser = HipHingeAnalyser();
+      default:
+        _squatAnalyser = SquatAnalyser();
+    }
   }
 
   Future<void> _initCamera() async {
@@ -220,7 +241,6 @@ class _ScreenScreenState extends State<ScreenScreen>
         imageFormatGroup: ImageFormatGroup.bgra8888,
       );
       await _controller!.initialize();
-      // I start the stream before the countdown ends so the preview is live immediately.
       _controller!.startImageStream(_processFrame);
       if (mounted) {
         setState(() => _isInitialized = true);
@@ -232,11 +252,14 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _startCountdown() {
+    setState(() {
+      _countdownActive = true;
+      _countdownValue = _kCountdownSeconds;
+      _analysisActive = false;
+    });
+    _overlayFadeController.value = 1.0;
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+      if (!mounted) { timer.cancel(); return; }
       setState(() => _countdownValue--);
       if (_countdownValue <= 0) {
         timer.cancel();
@@ -253,14 +276,11 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    if (_isDetecting || _navigated) return;
+    if (_isDetecting || _showingTransition || !_analysisActive) return;
     _isDetecting = true;
     try {
       final inputImage = _inputImageFromCamera(image);
-      if (inputImage == null) {
-        _isDetecting = false;
-        return;
-      }
+      if (inputImage == null) { _isDetecting = false; return; }
       final poses = await _poseDetector.processImage(inputImage);
       final smoothedLandmarks =
           poses.map((pose) => _smoother.smooth(pose.landmarks)).toList();
@@ -273,9 +293,7 @@ class _ScreenScreenState extends State<ScreenScreen>
         _processAnalysis(smoothedLandmarks.first, imageSize);
       }
 
-      if (mounted && !_navigated) {
-        setState(() => _smoothedLandmarks = smoothedLandmarks);
-      }
+      if (mounted) setState(() => _smoothedLandmarks = smoothedLandmarks);
     } catch (e) {
       print('Detection error: $e');
     } finally {
@@ -284,12 +302,10 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _processAnalysis(Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
+    if (_showingTransition) return;
     if (_squatAnalyser != null) {
       final newRep = _squatAnalyser!.analyseFrame(landmarks, imageSize);
-      if (newRep && _squatAnalyser!.repCount >= _kTargetReps && !_navigated) {
-        _navigated = true;
-        _navigateToResults();
-      }
+      if (newRep && _squatAnalyser!.repCount >= _kTargetReps) _onMovementComplete();
     } else if (_lungeAnalyser != null) {
       _handleUnilateralRep(
         newRep: _lungeAnalyser!.analyseFrame(landmarks, imageSize),
@@ -308,10 +324,7 @@ class _ScreenScreenState extends State<ScreenScreen>
       );
     } else if (_hipHingeAnalyser != null) {
       final newRep = _hipHingeAnalyser!.analyseFrame(landmarks, imageSize);
-      if (newRep && _hipHingeAnalyser!.repCount >= _kTargetReps && !_navigated) {
-        _navigated = true;
-        _navigateToResults();
-      }
+      if (newRep && _hipHingeAnalyser!.repCount >= _kTargetReps) _onMovementComplete();
     } else if (_singleLegStandAnalyser != null) {
       final inStance = _singleLegStandAnalyser!.analyseFrame(landmarks, imageSize);
       if (inStance && !_holdTimerActive) {
@@ -329,34 +342,29 @@ class _ScreenScreenState extends State<ScreenScreen>
     required int rightReps,
     required VoidCallback switchSide,
   }) {
-    if (!newRep) return;
+    if (!newRep || _showingTransition) return;
     final sideReps = activeSide == 'left' ? leftReps : rightReps;
     if (activeSide == 'left' && sideReps >= _kTargetReps) {
       switchSide();
       if (mounted) setState(() {});
-    } else if (activeSide == 'right' && sideReps >= _kTargetReps && !_navigated) {
-      _navigated = true;
-      _navigateToResults();
+    } else if (activeSide == 'right' && sideReps >= _kTargetReps) {
+      _onMovementComplete();
     }
   }
 
   void _startHoldTimer() {
     _holdTimerActive = true;
     _holdTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+      if (!mounted) { timer.cancel(); return; }
       setState(() => _holdSecondsRemaining--);
       if (_holdSecondsRemaining <= 0) {
         timer.cancel();
         _holdTimerActive = false;
         if (_singleLegStandAnalyser!.activeSide == 'left') {
           _singleLegStandAnalyser!.switchSide();
-          setState(() => _holdSecondsRemaining = widget.movementType.holdSeconds);
-        } else if (!_navigated) {
-          _navigated = true;
-          _navigateToResults();
+          setState(() => _holdSecondsRemaining = _currentMovement.holdSeconds);
+        } else {
+          _onMovementComplete();
         }
       }
     });
@@ -365,8 +373,47 @@ class _ScreenScreenState extends State<ScreenScreen>
   void _cancelHoldTimer() {
     _holdTimer?.cancel();
     _holdTimerActive = false;
-    // Reset the countdown -- the user must hold continuously.
-    if (mounted) setState(() => _holdSecondsRemaining = widget.movementType.holdSeconds);
+    if (mounted) setState(() => _holdSecondsRemaining = _currentMovement.holdSeconds);
+  }
+
+  void _onMovementComplete() {
+    if (_showingTransition) return;
+    _allFaults.addAll(_buildFaultList());
+    _analysisActive = false;
+    _countdownTimer?.cancel();
+    _holdTimer?.cancel();
+
+    if (_isLastMovement) {
+      _navigateToResults();
+    } else {
+      setState(() {
+        _showingTransition = true;
+        _transitionCountdown = _kTransitionCountdownSeconds;
+      });
+      _startTransitionCountdown();
+    }
+  }
+
+  void _startTransitionCountdown() {
+    _transitionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
+      setState(() => _transitionCountdown--);
+      if (_transitionCountdown <= 0) {
+        timer.cancel();
+        _advanceToNextMovement();
+      }
+    });
+  }
+
+  void _advanceToNextMovement() {
+    _transitionTimer?.cancel();
+    setState(() {
+      _currentMovementIndex++;
+      _showingTransition = false;
+    });
+    _initAnalyser(_currentMovement);
+    _smoother.reset();
+    _startCountdown();
   }
 
   InputImage? _inputImageFromCamera(CameraImage image) {
@@ -389,14 +436,13 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _navigateToResults() {
-    final faults = _buildFaultList();
-    final score = ScreenResult.calculateScore(faults);
+    final score = ScreenResult.calculateScore(_allFaults);
     final result = ScreenResult(
       sport: widget.sport,
       goal: widget.goal,
-      movementType: widget.movementType,
-      repCount: widget.movementType.isTimed ? 0 : _totalReps,
-      faults: faults,
+      movementType: MovementType.fullScreen,
+      repCount: 0,
+      faults: _allFaults,
       completedAt: DateTime.now(),
       score: score,
     );
@@ -408,9 +454,11 @@ class _ScreenScreenState extends State<ScreenScreen>
   }
 
   void _endScreenEarly() {
-    if (_navigated) return;
-    _navigated = true;
+    if (_showingTransition) return;
     _countdownTimer?.cancel();
+    _holdTimer?.cancel();
+    _transitionTimer?.cancel();
+    _allFaults.addAll(_buildFaultList());
     _navigateToResults();
   }
 
@@ -418,6 +466,7 @@ class _ScreenScreenState extends State<ScreenScreen>
   void dispose() {
     _countdownTimer?.cancel();
     _holdTimer?.cancel();
+    _transitionTimer?.cancel();
     _overlayFadeController.dispose();
     _controller?.stopImageStream();
     _controller?.dispose();
@@ -459,20 +508,14 @@ class _ScreenScreenState extends State<ScreenScreen>
             const SizedBox(height: 8),
             Text(
               'Pose detection requires a real device.',
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                color: PoiseColors.muted,
-              ),
+              style: GoogleFonts.dmSans(fontSize: 14, color: PoiseColors.muted),
             ),
             const SizedBox(height: 32),
             GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Text(
                 'Go back',
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: PoiseColors.accent,
-                ),
+                style: GoogleFonts.dmSans(fontSize: 14, color: PoiseColors.accent),
               ),
             ),
           ],
@@ -500,9 +543,7 @@ class _ScreenScreenState extends State<ScreenScreen>
     if (!_isInitialized) {
       return const Scaffold(
         backgroundColor: PoiseColors.background,
-        body: Center(
-          child: CircularProgressIndicator(color: PoiseColors.accent),
-        ),
+        body: Center(child: CircularProgressIndicator(color: PoiseColors.accent)),
       );
     }
 
@@ -510,6 +551,7 @@ class _ScreenScreenState extends State<ScreenScreen>
     final imageSize = Size(previewSize.height, previewSize.width);
     final repsToGo = (_kTargetReps - _currentReps).clamp(0, _kTargetReps);
     final side = _activeSide;
+    final movementNumber = _currentMovementIndex + 1;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -526,7 +568,7 @@ class _ScreenScreenState extends State<ScreenScreen>
             ),
           ),
 
-          // Skeleton overlay -- only shown once analysis is active.
+          // Skeleton overlay -- only shown during analysis.
           if (_analysisActive && _smoothedLandmarks.isNotEmpty)
             CustomPaint(
               painter: PosePainterDelegate(
@@ -537,7 +579,7 @@ class _ScreenScreenState extends State<ScreenScreen>
               ),
             ),
 
-          // Top gradient to make the UI readable over the camera feed.
+          // Top gradient.
           const Positioned(
             top: 0, left: 0, right: 0, height: 200,
             child: DecoratedBox(
@@ -566,128 +608,113 @@ class _ScreenScreenState extends State<ScreenScreen>
           ),
 
           // Top-left: live fault pills.
-          Positioned(
-            top: 56,
-            left: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _relevantFaults.map((type) {
-                final isActive =
-                    _analysisActive && _activeFaults.contains(type);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: PoiseColors.card.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(4),
-                      border: isActive
-                          ? const Border(
-                              left: BorderSide(
-                                  color: PoiseColors.error, width: 2),
-                            )
-                          : null,
-                    ),
-                    child: Text(
-                      _faultLabel(type),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color:
-                            isActive ? PoiseColors.error : PoiseColors.muted,
+          if (!_showingTransition)
+            Positioned(
+              top: 56,
+              left: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _relevantFaults.map((type) {
+                  final isActive = _analysisActive && _activeFaults.contains(type);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: PoiseColors.card.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(4),
+                        border: isActive
+                            ? const Border(left: BorderSide(color: PoiseColors.error, width: 2))
+                            : null,
+                      ),
+                      child: Text(
+                        _faultLabel(type),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isActive ? PoiseColors.error : PoiseColors.muted,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          // Top-right: sport label.
-          Positioned(
-            top: 56,
-            right: 16,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: PoiseColors.card.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(4),
+                  );
+                }).toList(),
               ),
-              child: Text(
-                widget.sport,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: PoiseColors.muted,
+            ),
+
+          // Top-right: movement progress label.
+          if (!_showingTransition)
+            Positioned(
+              top: 56,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: PoiseColors.card.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '$movementNumber / ${_kAllMovements.length}',
+                  style: GoogleFonts.dmSans(fontSize: 12, color: PoiseColors.muted),
                 ),
               ),
             ),
-          ),
 
-          // Bottom-left: rep counter.
-          Positioned(
-            bottom: 40,
-            left: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _mainDisplayValue,
-                  style: GoogleFonts.syne(
-                    fontSize: 56,
-                    fontWeight: FontWeight.w800,
-                    color: PoiseColors.accent,
-                    height: 1,
-                  ),
-                ),
-                Text(
-                  _mainDisplaySublabel,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: PoiseColors.offWhite,
-                  ),
-                ),
-                if (side != null)
+          // Bottom-left: rep counter / hold timer.
+          if (!_showingTransition)
+            Positioned(
+              bottom: 40,
+              left: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    widget.movementType == MovementType.shoulderRotation
-                        ? '${side.toUpperCase()} ARM'
-                        : '${side.toUpperCase()} LEG',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    _mainDisplayValue,
+                    style: GoogleFonts.syne(
+                      fontSize: 56,
+                      fontWeight: FontWeight.w800,
                       color: PoiseColors.accent,
+                      height: 1,
                     ),
                   ),
-                if (!widget.movementType.isTimed)
                   Text(
-                    '$repsToGo reps to complete',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      color: PoiseColors.muted,
-                    ),
+                    _mainDisplaySublabel,
+                    style: GoogleFonts.dmSans(fontSize: 12, color: PoiseColors.offWhite),
                   ),
-              ],
+                  if (side != null)
+                    Text(
+                      _currentMovement == MovementType.shoulderRotation
+                          ? '${side.toUpperCase()} ARM'
+                          : '${side.toUpperCase()} LEG',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: PoiseColors.accent,
+                      ),
+                    ),
+                  if (!_currentMovement.isTimed)
+                    Text(
+                      '$repsToGo reps to complete',
+                      style: GoogleFonts.dmSans(fontSize: 11, color: PoiseColors.muted),
+                    ),
+                ],
+              ),
             ),
-          ),
 
           // Bottom-right: early exit.
-          Positioned(
-            bottom: 44,
-            right: 16,
-            child: GestureDetector(
-              onTap: _endScreenEarly,
-              child: Text(
-                _kEndScreen,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: PoiseColors.muted,
+          if (!_showingTransition)
+            Positioned(
+              bottom: 44,
+              right: 16,
+              child: GestureDetector(
+                onTap: _endScreenEarly,
+                child: Text(
+                  _kEndScreen,
+                  style: GoogleFonts.dmSans(fontSize: 12, color: PoiseColors.muted),
                 ),
               ),
             ),
-          ),
 
-          // Countdown overlay -- fades out when the countdown hits zero.
+          // Countdown overlay (fades out when hits zero).
           if (_countdownActive)
             FadeTransition(
               opacity: _overlayOpacity,
@@ -707,7 +734,7 @@ class _ScreenScreenState extends State<ScreenScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        widget.movementType.setupInstruction,
+                        _currentMovement.setupInstruction,
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: PoiseColors.offWhite,
@@ -722,6 +749,80 @@ class _ScreenScreenState extends State<ScreenScreen>
                           fontWeight: FontWeight.w800,
                           color: PoiseColors.accent,
                           height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Between-movement transition overlay.
+          if (_showingTransition)
+            Container(
+              color: Colors.black.withValues(alpha: 0.85),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _kMovementComplete,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: PoiseColors.muted,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _kUpNext,
+                        style: GoogleFonts.syne(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: PoiseColors.offWhite,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _kAllMovements[_currentMovementIndex + 1].displayName,
+                        style: GoogleFonts.syne(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: PoiseColors.accent,
+                          height: 1.1,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _kAllMovements[_currentMovementIndex + 1].setupInstruction,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          color: PoiseColors.muted,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+                      // Auto-advances after countdown, but user can tap early.
+                      GestureDetector(
+                        onTap: _advanceToNextMovement,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: PoiseColors.accent,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '$_kReady ($_transitionCountdown)',
+                            style: GoogleFonts.syne(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
                       ),
                     ],
