@@ -8,7 +8,7 @@ import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
-import 'screen_screen.dart';
+import 'home_screen.dart';
 
 const _kStep1Of2 = 'STEP 1 OF 2';
 const _kStep2Of2 = 'STEP 2 OF 2';
@@ -88,12 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ScreenScreen(
-            sport: _selectedSport!,
-            goal: _selectedGoal!,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     }
   }
