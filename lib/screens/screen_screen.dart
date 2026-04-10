@@ -238,7 +238,9 @@ class _ScreenScreenState extends State<ScreenScreen>
         frontCamera,
         ResolutionPreset.medium,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.nv21
+            : ImageFormatGroup.bgra8888,
       );
       await _controller!.initialize();
       _controller!.startImageStream(_processFrame);
@@ -421,16 +423,24 @@ class _ScreenScreenState extends State<ScreenScreen>
     final rotation =
         InputImageRotationValue.fromRawValue(camera.sensorOrientation);
     if (rotation == null) return null;
+
+    // On Android with NV21 the format raw value is recognised directly.
+    // On iOS (bgra8888) it also maps correctly.
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null) return null;
-    final plane = image.planes.first;
+
+    // NV21 delivers all data in a single plane; bgra8888 likewise.
+    // For YUV_420_888 (rare fallback) we'd need to concatenate planes,
+    // but nv21 is requested explicitly above so plane[0] is sufficient.
+    final bytes = image.planes.first.bytes;
+
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow: image.planes.first.bytesPerRow,
       ),
     );
   }
