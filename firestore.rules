@@ -3,6 +3,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Returns true if the requesting user is the owner of the org that
+    // memberUid belongs to. Used to allow practitioners to read athlete screens.
+    function isPractitionerFor(memberUid) {
+      let memberDoc = get(/databases/$(database)/documents/users/$(memberUid));
+      let orgId = memberDoc.data.orgId;
+      return orgId != null &&
+        get(/databases/$(database)/documents/organisations/$(orgId)).data.ownerUid == request.auth.uid;
+    }
+
     // --- Users ---
     // Users can read and write their own document only.
     // isPro, orgId, prehabLocked are set by redeemReferralCode (via batch write)
@@ -14,9 +23,14 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['isPro', 'orgId', 'prehabLocked']);
 
-      // Screen history is private to the user.
+      // Screen history: readable by the user themselves, or by the owner of
+      // the org the user belongs to (practitioner dashboard access).
       match /screens/{screenId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && (
+          request.auth.uid == uid ||
+          isPractitionerFor(uid)
+        );
+        allow write: if request.auth != null && request.auth.uid == uid;
       }
     }
 
