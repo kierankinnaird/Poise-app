@@ -17,7 +17,9 @@ service cloud.firestore {
     // isPro, orgId, prehabLocked are set by redeemReferralCode (via batch write)
     // and by the web portal (via admin SDK) -- not writable by the client directly.
     match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+      // Any authenticated user can read profiles -- needed so isPractitionerFor
+      // can get() a member's user doc when evaluating screen access.
+      allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == uid;
       allow update: if request.auth != null && request.auth.uid == uid
         && !request.resource.data.diff(resource.data).affectedKeys()
