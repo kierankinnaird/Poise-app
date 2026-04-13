@@ -2,36 +2,39 @@
 // code that athletes redeem to get free pro access (faults only, no prehab plan).
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Matches the four billing tiers on the web portal.
-enum OrgTier { starter, pro, team, club }
+// Matches the billing tiers on the web portal. Enterprise is manually provisioned.
+enum OrgTier { starter, pro, team, club, enterprise }
 
 extension OrgTierExtension on OrgTier {
   String get name {
     switch (this) {
-      case OrgTier.starter: return 'starter';
-      case OrgTier.pro:     return 'pro';
-      case OrgTier.team:    return 'team';
-      case OrgTier.club:    return 'club';
+      case OrgTier.starter:    return 'starter';
+      case OrgTier.pro:        return 'pro';
+      case OrgTier.team:       return 'team';
+      case OrgTier.club:       return 'club';
+      case OrgTier.enterprise: return 'enterprise';
     }
   }
 
-  // -1 means unlimited (club tier).
+  // -1 means unlimited.
   int get maxSeats {
     switch (this) {
-      case OrgTier.starter: return 10;
-      case OrgTier.pro:     return 30;
-      case OrgTier.team:    return 75;
-      case OrgTier.club:    return -1;
+      case OrgTier.starter:    return 10;
+      case OrgTier.pro:        return 30;
+      case OrgTier.team:       return 75;
+      case OrgTier.club:       return 250;
+      case OrgTier.enterprise: return -1;
     }
   }
 
   static OrgTier fromString(String value) {
     switch (value) {
-      case 'starter': return OrgTier.starter;
-      case 'pro':     return OrgTier.pro;
-      case 'team':    return OrgTier.team;
-      case 'club':    return OrgTier.club;
-      default:        return OrgTier.starter;
+      case 'starter':    return OrgTier.starter;
+      case 'pro':        return OrgTier.pro;
+      case 'team':       return OrgTier.team;
+      case 'club':       return OrgTier.club;
+      case 'enterprise': return OrgTier.enterprise;
+      default:           return OrgTier.starter;
     }
   }
 }
