@@ -60,7 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context)
             .push(MaterialPageRoute(
                 builder: (_) => ScreenScreen(
-                    sport: profile.sport, goal: profile.goal)))
+                      sport: profile.sport,
+                      goal: profile.goal,
+                      prehabLocked: profile.prehabLocked,
+                    )))
             .then((_) {
           if (mounted) setState(() => _selectedIndex = 0);
         });
@@ -261,8 +264,11 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
     if (profile != null && profile.sport.isNotEmpty) {
       Navigator.of(context)
           .push(MaterialPageRoute(
-              builder: (_) =>
-                  ScreenScreen(sport: profile.sport, goal: profile.goal)))
+              builder: (_) => ScreenScreen(
+                    sport: profile.sport,
+                    goal: profile.goal,
+                    prehabLocked: profile.prehabLocked,
+                  )))
           .then((_) {
         if (mounted) _loadData();
       });
@@ -427,7 +433,23 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (plan == null || plan.exercises.isEmpty)
+              if (_profile?.prehabLocked == true)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: PoiseColors.card,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Subscribe individually to unlock your prehab plan.',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: PoiseColors.muted,
+                    ),
+                  ),
+                )
+              else if (plan == null || plan.exercises.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
