@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Users ---
+    // Users can read and write their own document only.
+    // isPro, orgId, prehabLocked are set by redeemReferralCode (via batch write)
+    // and by the web portal (via admin SDK) -- not writable by the client directly.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['isPro', 'orgId', 'prehabLocked']);
+
+      // Screen history is private to the user.
+      match /screens/{screenId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // --- Organisations ---
+    // Any authenticated user can read an org document so they can validate a
+    // referral code. Only the owner can update their org.
+    match /organisations/{orgId} {
+      allow read: if request.auth != null;
+      allow create: if false; // created by web portal via admin SDK only
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.ownerUid;
+      allow delete: if false;
+
+      // Members subcollection:
+      // - Any authenticated user can create their own member doc (redeeming a code).
+      // - Only the org owner can read the full member list.
+      // - No deletes or updates from the client.
+      match /members/{memberId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/organisations/$(orgId)).data.ownerUid == request.auth.uid;
+        allow create: if request.auth != null && request.auth.uid == memberId;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
