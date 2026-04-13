@@ -14,6 +14,7 @@ import 'onboarding_screen.dart';
 
 const _kTitle = 'Profile.';
 const _kMySport = 'MY SPORT';
+const _kMembership = 'MEMBERSHIP';
 const _kRescreenReminders = 'RESCREEN REMINDERS';
 const _kAccount = 'ACCOUNT';
 const _kEraseHistory = 'Erase history';
@@ -25,6 +26,7 @@ const _kChange = 'Change';
 const _kCompleteProfile = 'COMPLETE YOUR PROFILE';
 const _kAddName = 'Add your name';
 const _kAddNameSub = "We'll use it to personalise your experience.";
+const _kReferralCode = 'Have a referral code?';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -183,6 +185,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _firestoreService.saveUserProfile(updated);
     } catch (e) {
       print('Failed to save name: $e');
+    }
+  }
+
+  Future<void> _redeemCode() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: PoiseColors.card,
+        title: Text(
+          'Enter referral code',
+          style: GoogleFonts.syne(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: PoiseColors.offWhite,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          style: GoogleFonts.dmSans(color: PoiseColors.offWhite, fontSize: 14),
+          decoration: const InputDecoration(hintText: 'e.g. POISE-ABC123'),
+          onSubmitted: (_) => Navigator.of(ctx).pop(true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: PoiseColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Redeem',
+                style: GoogleFonts.dmSans(color: PoiseColors.accent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || controller.text.trim().isEmpty) return;
+
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    try {
+      await _firestoreService.redeemReferralCode(
+        user.uid,
+        controller.text.trim(),
+        displayName: _profile?.name,
+      );
+      await _loadProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code redeemed. You now have free access.',
+                style: GoogleFonts.dmSans(color: PoiseColors.offWhite)),
+            backgroundColor: PoiseColors.card,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e',
+                style: GoogleFonts.dmSans(color: PoiseColors.offWhite)),
+            backgroundColor: PoiseColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -413,6 +486,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // MEMBERSHIP
+              Text(
+                _kMembership,
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: PoiseColors.muted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: PoiseColors.card,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: _profile?.orgId != null
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 14),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline,
+                                color: PoiseColors.accent, size: 18),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Linked to a practitioner',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: PoiseColors.offWhite,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _AccountRow(
+                        label: _kReferralCode,
+                        labelColor: PoiseColors.offWhite,
+                        trailing: const Icon(Icons.chevron_right,
+                            color: PoiseColors.muted, size: 20),
+                        onTap: _redeemCode,
+                      ),
               ),
 
               const SizedBox(height: 12),
