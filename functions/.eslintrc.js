@@ -17,6 +17,7 @@ module.exports = {
   ignorePatterns: [
     "/lib/**/*",
     ".eslintrc.js",
+    "seed.js",
   ],
   plugins: [
     "@typescript-eslint",

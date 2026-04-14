@@ -50,3 +50,4 @@ app.*.map.json
 
 # Service account keys -- never commit these
 functions/service-account.json
+.env
