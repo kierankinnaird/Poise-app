@@ -628,6 +628,7 @@ class _ScreenScreenState extends State<ScreenScreen>
                 imageSize: imageSize,
                 inSquat: _inMovement,
                 activeFaults: Set.from(_activeFaults),
+                isFrontCamera: _controller?.description.lensDirection == CameraLensDirection.front,
               ),
             ),
 
@@ -783,6 +784,17 @@ class _ScreenScreenState extends State<ScreenScreen>
                           fontWeight: FontWeight.w700,
                           color: PoiseColors.accent,
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _currentMovement.displayName,
+                        style: GoogleFonts.syne(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: PoiseColors.offWhite,
+                          height: 1.1,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       Text(

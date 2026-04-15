@@ -54,12 +54,14 @@ class PosePainterDelegate extends CustomPainter {
   final Size imageSize;
   final bool inSquat;
   final Set<FaultType> activeFaults;
+  final bool isFrontCamera;
 
   PosePainterDelegate({
     required this.smoothedLandmarks,
     required this.imageSize,
     required this.inSquat,
     this.activeFaults = const {},
+    this.isFrontCamera = false,
   });
 
   // Build a set of connection key strings so I can look them up in O(1).
@@ -144,8 +146,9 @@ class PosePainterDelegate extends CustomPainter {
 
       for (final entry in landmarks.entries) {
         final isError = errorJoints.contains(entry.key);
-        final x = entry.value.dx / imageSize.width * size.width;
+        var x = entry.value.dx / imageSize.width * size.width;
         final y = entry.value.dy / imageSize.height * size.height;
+        if (isFrontCamera) x = size.width - x;
         canvas.drawCircle(Offset(x, y), 4,
             isError ? errorDotPaint : baseDotPaint);
       }
@@ -163,11 +166,15 @@ class PosePainterDelegate extends CustomPainter {
     final start = landmarks[from];
     final end = landmarks[to];
     if (start == null || end == null) return;
+    var sx = start.dx / imageSize.width * size.width;
+    var ex = end.dx / imageSize.width * size.width;
+    if (isFrontCamera) {
+      sx = size.width - sx;
+      ex = size.width - ex;
+    }
     canvas.drawLine(
-      Offset(start.dx / imageSize.width * size.width,
-          start.dy / imageSize.height * size.height),
-      Offset(end.dx / imageSize.width * size.width,
-          end.dy / imageSize.height * size.height),
+      Offset(sx, start.dy / imageSize.height * size.height),
+      Offset(ex, end.dy / imageSize.height * size.height),
       paint,
     );
   }
