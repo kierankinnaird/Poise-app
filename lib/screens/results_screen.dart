@@ -55,10 +55,14 @@ class ResultsScreen extends StatefulWidget {
   // readOnly is true when viewing from history -- no save, no CTAs.
   final bool readOnly;
 
+  // prehabLocked is true for org members -- faults shown, plan hidden.
+  final bool prehabLocked;
+
   const ResultsScreen({
     super.key,
     required this.result,
     this.readOnly = false,
+    this.prehabLocked = false,
   });
 
   @override
@@ -163,7 +167,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final plan = PrehabGenerator.generate(widget.result.faults);
+    final plan = widget.prehabLocked
+        ? null
+        : PrehabGenerator.generate(widget.result.faults);
     final score = widget.result.score;
     final scoreColor = _scoreColor(score);
 
@@ -311,10 +317,47 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              ...plan.exercises.map((exercise) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: ExerciseCard(exercise: exercise),
-                  )),
+              if (widget.prehabLocked)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: PoiseColors.card,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: PoiseColors.muted.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lock_outline,
+                          color: PoiseColors.muted, size: 20),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Prehab plan not included',
+                        style: GoogleFonts.syne(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: PoiseColors.offWhite,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your practitioner can see your faults and scores. Subscribe individually to unlock your personalised exercise plan.',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: PoiseColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...plan!.exercises.map((exercise) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ExerciseCard(exercise: exercise),
+                    )),
 
               // CTAs -- hidden in read-only mode.
               if (!widget.readOnly) ...[

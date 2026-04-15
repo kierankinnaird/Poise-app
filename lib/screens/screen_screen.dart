@@ -42,11 +42,13 @@ const _kAllMovements = [
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
+  final bool prehabLocked;
 
   const ScreenScreen({
     super.key,
     required this.sport,
     required this.goal,
+    this.prehabLocked = false,
   });
 
   @override
@@ -500,7 +502,12 @@ class _ScreenScreenState extends State<ScreenScreen>
     );
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => ResultsScreen(result: result)),
+        MaterialPageRoute(
+          builder: (_) => ResultsScreen(
+            result: result,
+            prehabLocked: widget.prehabLocked,
+          ),
+        ),
       );
     }
   }

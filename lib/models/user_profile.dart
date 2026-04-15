@@ -9,6 +9,9 @@ class UserProfile {
   final String sport;
   final String goal;
   final DateTime createdAt;
+  final bool isPro;           // true = full access (individual sub, org member, or manual override)
+  final String? orgId;        // set when user joined via a practitioner referral code
+  final bool prehabLocked;    // true when access is via org code -- faults only, no prehab plan
 
   const UserProfile({
     required this.uid,
@@ -17,6 +20,9 @@ class UserProfile {
     required this.sport,
     required this.goal,
     required this.createdAt,
+    this.isPro = false,
+    this.orgId,
+    this.prehabLocked = false,
   });
 
   Map<String, dynamic> toFirestore() {
@@ -27,6 +33,9 @@ class UserProfile {
       'sport': sport,
       'goal': goal,
       'createdAt': Timestamp.fromDate(createdAt),
+      'isPro': isPro,
+      if (orgId != null) 'orgId': orgId,
+      'prehabLocked': prehabLocked,
     };
   }
 
@@ -41,6 +50,9 @@ class UserProfile {
       sport: data['sport'] as String? ?? '',
       goal: data['goal'] as String? ?? '',
       createdAt: createdAt,
+      isPro: data['isPro'] as bool? ?? false,
+      orgId: data['orgId'] as String?,
+      prehabLocked: data['prehabLocked'] as bool? ?? false,
     );
   }
 
@@ -51,6 +63,9 @@ class UserProfile {
     String? sport,
     String? goal,
     DateTime? createdAt,
+    bool? isPro,
+    String? orgId,
+    bool? prehabLocked,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -59,6 +74,9 @@ class UserProfile {
       sport: sport ?? this.sport,
       goal: goal ?? this.goal,
       createdAt: createdAt ?? this.createdAt,
+      isPro: isPro ?? this.isPro,
+      orgId: orgId ?? this.orgId,
+      prehabLocked: prehabLocked ?? this.prehabLocked,
     );
   }
 }

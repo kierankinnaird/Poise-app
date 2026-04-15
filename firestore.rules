@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Returns true if the requesting user is the owner of the org that
+    // memberUid belongs to. Used to allow practitioners to read athlete screens.
+    function isPractitionerFor(memberUid) {
+      let memberDoc = get(/databases/$(database)/documents/users/$(memberUid));
+      let orgId = memberDoc.data.orgId;
+      return orgId != null &&
+        get(/databases/$(database)/documents/organisations/$(orgId)).data.ownerUid == request.auth.uid;
+    }
+
+    // --- Users ---
+    // Users can read and write their own document only.
+    // isPro, orgId, prehabLocked are set by redeemReferralCode (via batch write)
+    // and by the web portal (via admin SDK) -- not writable by the client directly.
+    match /users/{uid} {
+      // Any authenticated user can read profiles -- needed so isPractitionerFor
+      // can get() a member's user doc when evaluating screen access.
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['isPro', 'orgId', 'prehabLocked']);
+
+      // Screen history: readable by the user themselves, or by the owner of
+      // the org the user belongs to (practitioner dashboard access).
+      match /screens/{screenId} {
+        allow read: if request.auth != null && (
+          request.auth.uid == uid ||
+          isPractitionerFor(uid)
+        );
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // --- Organisations ---
+    // Any authenticated user can read an org document so they can validate a
+    // referral code. Only the owner can update their org.
+    match /organisations/{orgId} {
+      allow read: if request.auth != null;
+      allow create: if false; // created by web portal via admin SDK only
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.ownerUid;
+      allow delete: if false;
+
+      // Members subcollection:
+      // - Any authenticated user can create their own member doc (redeeming a code).
+      // - Only the org owner can read the full member list.
+      // - No deletes or updates from the client.
+      match /members/{memberId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/organisations/$(orgId)).data.ownerUid == request.auth.uid;
+        allow create: if request.auth != null && request.auth.uid == memberId;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
