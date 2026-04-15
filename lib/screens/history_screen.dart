@@ -7,7 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../services/auth_service.dart';
@@ -22,19 +22,19 @@ const _kMonths = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-// Fault types grouped by category for the dashboard cards.
-const _mobilityFaultTypes = {
-  FaultType.depth,
-  FaultType.forwardLean,
-  FaultType.limitedRotation,
-  FaultType.armFallForward,
-  FaultType.heelRise,
+// Observation types grouped by category for the dashboard cards.
+const _mobilityObservationTypes = {
+  MovementObservationType.depth,
+  MovementObservationType.forwardLean,
+  MovementObservationType.limitedRotation,
+  MovementObservationType.armFallForward,
+  MovementObservationType.heelRise,
 };
-const _stabilityFaultTypes = {
-  FaultType.kneeCave,
-  FaultType.hipDrop,
-  FaultType.excessiveSway,
-  FaultType.excessiveKneeBend,
+const _stabilityObservationTypes = {
+  MovementObservationType.kneeCave,
+  MovementObservationType.hipDrop,
+  MovementObservationType.excessiveSway,
+  MovementObservationType.excessiveKneeBend,
 };
 
 Color _scoreColor(int score) {
@@ -43,26 +43,26 @@ Color _scoreColor(int score) {
   return PoiseColors.error;
 }
 
-String _faultTypeName(FaultType type) {
+String _observationTypeName(MovementObservationType type) {
   switch (type) {
-    case FaultType.kneeCave:
-      return 'Knee Cave';
-    case FaultType.depth:
-      return 'Insufficient Depth';
-    case FaultType.forwardLean:
+    case MovementObservationType.kneeCave:
+      return 'Knee Inward Pattern';
+    case MovementObservationType.depth:
+      return 'Limited Depth';
+    case MovementObservationType.forwardLean:
       return 'Forward Lean';
-    case FaultType.heelRise:
-      return 'Heel Rise';
-    case FaultType.hipDrop:
+    case MovementObservationType.heelRise:
+      return 'Heel Lift';
+    case MovementObservationType.hipDrop:
       return 'Hip Drop';
-    case FaultType.excessiveSway:
-      return 'Excessive Sway';
-    case FaultType.armFallForward:
-      return 'Arms Falling Forward';
-    case FaultType.limitedRotation:
-      return 'Limited Overhead Reach';
-    case FaultType.excessiveKneeBend:
-      return 'Excessive Knee Bend';
+    case MovementObservationType.excessiveSway:
+      return 'Sway Pattern';
+    case MovementObservationType.armFallForward:
+      return 'Arms Forward';
+    case MovementObservationType.limitedRotation:
+      return 'Limited Rotation';
+    case MovementObservationType.excessiveKneeBend:
+      return 'Knee-Dominant Pattern';
   }
 }
 
@@ -137,25 +137,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return _history.fold<int>(0, (s, r) => s + r.score) ~/ _history.length;
   }
 
-  String get _topFault {
+  String get _topObservation {
     if (_history.isEmpty) return 'None';
     final counts = <String, int>{};
     for (final result in _history) {
-      for (final fault in result.faults) {
-        counts[fault.name] = (counts[fault.name] ?? 0) + 1;
+      for (final observation in result.observations) {
+        counts[observation.name] = (counts[observation.name] ?? 0) + 1;
       }
     }
     if (counts.isEmpty) return 'None';
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
-  // Average per-session mobility score. Each unique mobility fault costs 20 points.
+  // Average per-session mobility score. Each unique mobility observation costs 20 points.
   int get _mobilityScore {
     if (_history.isEmpty) return 0;
     final total = _history.fold<int>(0, (sum, result) {
-      final unique = result.faults
-          .where((f) => _mobilityFaultTypes.contains(f.type))
-          .map((f) => f.type)
+      final unique = result.observations
+          .where((o) => _mobilityObservationTypes.contains(o.type))
+          .map((o) => o.type)
           .toSet()
           .length;
       return sum + (100 - unique * 20).clamp(0, 100);
@@ -163,13 +163,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return total ~/ _history.length;
   }
 
-  // Average per-session stability score. Each unique stability fault costs 25 points.
+  // Average per-session stability score. Each unique stability observation costs 25 points.
   int get _stabilityScore {
     if (_history.isEmpty) return 0;
     final total = _history.fold<int>(0, (sum, result) {
-      final unique = result.faults
-          .where((f) => _stabilityFaultTypes.contains(f.type))
-          .map((f) => f.type)
+      final unique = result.observations
+          .where((o) => _stabilityObservationTypes.contains(o.type))
+          .map((o) => o.type)
           .toSet()
           .length;
       return sum + (100 - unique * 25).clamp(0, 100);
@@ -178,17 +178,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // Symmetry score: 100 minus the % of sessions that showed left/right asymmetry
-  // (same fault type detected on one side but not the other in the same session).
+  // (same observation type detected on one side but not the other in the same session).
   int get _symmetryScore {
     if (_history.isEmpty) return 0;
     final asymmetricCount = _history.where((result) {
-      final left = result.faults
-          .where((f) => f.side == 'left')
-          .map((f) => f.type)
+      final left = result.observations
+          .where((o) => o.side == 'left')
+          .map((o) => o.type)
           .toSet();
-      final right = result.faults
-          .where((f) => f.side == 'right')
-          .map((f) => f.type)
+      final right = result.observations
+          .where((o) => o.side == 'right')
+          .map((o) => o.type)
           .toSet();
       return left.any((t) => !right.contains(t)) ||
           right.any((t) => !left.contains(t));
@@ -196,11 +196,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return (100 - asymmetricCount / _history.length * 100).round();
   }
 
-  // Top 5 fault types by number of sessions in which they appeared.
-  List<MapEntry<FaultType, int>> get _topFaultEntries {
-    final counts = <FaultType, int>{};
+  // Top 5 observation types by number of sessions in which they appeared.
+  List<MapEntry<MovementObservationType, int>> get _topObservationEntries {
+    final counts = <MovementObservationType, int>{};
     for (final result in _history) {
-      for (final type in result.faults.map((f) => f.type).toSet()) {
+      for (final type in result.observations.map((o) => o.type).toSet()) {
         counts[type] = (counts[type] ?? 0) + 1;
       }
     }
@@ -221,7 +221,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     final chronological = _history.reversed.toList();
-    final faultEntries = _topFaultEntries;
+    final observationEntries = _topObservationEntries;
 
     return Scaffold(
       backgroundColor: PoiseColors.background,
@@ -259,7 +259,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _TopFaultTile(value: _topFault, label: 'Top fault'),
+              child: _TopObservationTile(value: _topObservation, label: 'Top observation'),
             ),
           ]),
 
@@ -568,7 +568,7 @@ class _FaultFrequencyCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          _faultTypeName(entry.key),
+                          _observationTypeName(entry.key),
                           style: GoogleFonts.dmSans(
                             fontSize: 12,
                             color: PoiseColors.offWhite,
@@ -646,11 +646,11 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _TopFaultTile extends StatelessWidget {
+class _TopObservationTile extends StatelessWidget {
   final String value;
   final String label;
 
-  const _TopFaultTile({required this.value, required this.label});
+  const _TopObservationTile({required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {

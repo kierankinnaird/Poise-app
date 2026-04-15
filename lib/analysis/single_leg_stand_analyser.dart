@@ -3,7 +3,7 @@
 // the user is in valid single-leg stance and tracks lateral sway.
 import 'package:flutter/painting.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 
 class SingleLegStandAnalyser {
   String activeSide = 'left';
@@ -11,25 +11,25 @@ class SingleLegStandAnalyser {
   // inStance is true when the non-stance foot is visibly lifted.
   bool inStance = false;
 
-  Map<FaultType, int> _frameCounts = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> observationFrameCounts = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _leftTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> _leftTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _rightTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> _rightTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  Set<FaultType> _leftSessionFaults = {};
-  Set<FaultType> _rightSessionFaults = {};
-  Set<FaultType> activeFaults = {};
+  Set<MovementObservationType> _leftSessionObservations = {};
+  Set<MovementObservationType> _rightSessionObservations = {};
+  Set<MovementObservationType> activeObservations = {};
 
   void switchSide() {
     activeSide = 'right';
     inStance = false;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    activeObservations.clear();
   }
 
   // Returns true when the user is currently in valid single-leg stance.
@@ -55,23 +55,23 @@ class SingleLegStandAnalyser {
     }
 
     if (inStance) {
-      _analyseFaults(landmarks, imageSize);
+      _analyseObservations(landmarks, imageSize);
     } else {
-      _frameCounts[FaultType.excessiveSway] = 0;
-      activeFaults.remove(FaultType.excessiveSway);
+      observationFrameCounts[MovementObservationType.excessiveSway] = 0;
+      activeObservations.remove(MovementObservationType.excessiveSway);
     }
 
     return inStance;
   }
 
-  void _analyseFaults(
+  void _analyseObservations(
       Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
     final leftHip = landmarks[PoseLandmarkType.leftHip];
     final rightHip = landmarks[PoseLandmarkType.rightHip];
     final leftShoulder = landmarks[PoseLandmarkType.leftShoulder];
     final rightShoulder = landmarks[PoseLandmarkType.rightShoulder];
 
-    final detected = <FaultType>{};
+    final detected = <MovementObservationType>{};
 
     // Excessive sway -- shoulder midpoint drifts laterally from hip midpoint.
     if (leftHip != null &&
@@ -81,57 +81,57 @@ class SingleLegStandAnalyser {
       final hipMidX = (leftHip.dx + rightHip.dx) / 2;
       final shoulderMidX = (leftShoulder.dx + rightShoulder.dx) / 2;
       if ((shoulderMidX - hipMidX).abs() > imageSize.width * 0.06) {
-        detected.add(FaultType.excessiveSway);
+        detected.add(MovementObservationType.excessiveSway);
       }
     }
 
     final totalFrames =
         activeSide == 'left' ? _leftTotalFrames : _rightTotalFrames;
-    final sessionFaults =
-        activeSide == 'left' ? _leftSessionFaults : _rightSessionFaults;
+    final sessionObservations =
+        activeSide == 'left' ? _leftSessionObservations : _rightSessionObservations;
 
-    for (final type in [FaultType.excessiveSway]) {
+    for (final type in [MovementObservationType.excessiveSway]) {
       if (detected.contains(type)) {
-        _frameCounts[type] = (_frameCounts[type] ?? 0) + 1;
-        if ((_frameCounts[type] ?? 0) >= 3) {
-          activeFaults.add(type);
-          sessionFaults.add(type);
+        observationFrameCounts[type] = (observationFrameCounts[type] ?? 0) + 1;
+        if ((observationFrameCounts[type] ?? 0) >= 3) {
+          activeObservations.add(type);
+          sessionObservations.add(type);
           totalFrames[type] = (totalFrames[type] ?? 0) + 1;
         }
       } else {
-        _frameCounts[type] = 0;
-        activeFaults.remove(type);
+        observationFrameCounts[type] = 0;
+        activeObservations.remove(type);
       }
     }
   }
 
-  List<Fault> buildFaultList() {
-    final faults = <Fault>[];
-    for (final type in _leftSessionFaults) {
-      faults.add(Fault.fromType(
+  List<MovementObservation> buildObservationList() {
+    final observations = <MovementObservation>[];
+    for (final type in _leftSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _leftTotalFrames[type] ?? 3,
         side: 'left',
       ));
     }
-    for (final type in _rightSessionFaults) {
-      faults.add(Fault.fromType(
+    for (final type in _rightSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _rightTotalFrames[type] ?? 3,
         side: 'right',
       ));
     }
-    return faults;
+    return observations;
   }
 
   void reset() {
     activeSide = 'left';
     inStance = false;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    _leftTotalFrames = {for (final t in FaultType.values) t: 0};
-    _rightTotalFrames = {for (final t in FaultType.values) t: 0};
-    _leftSessionFaults = {};
-    _rightSessionFaults = {};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    _leftTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _rightTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _leftSessionObservations = {};
+    _rightSessionObservations = {};
+    activeObservations.clear();
   }
 }

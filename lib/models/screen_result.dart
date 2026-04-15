@@ -1,7 +1,7 @@
 // A completed movement screen. I store this both in Firestore (for signed-in users)
 // and in SharedPreferences as JSON (for guests and offline fallback).
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'fault.dart';
+import 'movement_observation.dart';
 import 'movement_type.dart';
 
 class ScreenResult {
@@ -9,7 +9,7 @@ class ScreenResult {
   final String goal;
   final MovementType movementType;
   final int repCount;
-  final List<Fault> faults;
+  final List<MovementObservation> observations;
   final DateTime completedAt;
   final int score;
 
@@ -18,16 +18,16 @@ class ScreenResult {
     required this.goal,
     this.movementType = MovementType.squat,
     required this.repCount,
-    required this.faults,
+    required this.observations,
     required this.completedAt,
     required this.score,
   });
 
-  // Score is 100 minus 15 points per unique fault type, clamped to 0-100.
+  // Score is 100 minus 15 points per unique observation type, clamped to 0-100.
   // Simple enough to explain to a user, meaningful enough to track progress.
-  static int calculateScore(List<Fault> faults) {
-    final uniqueFaults = faults.map((f) => f.type).toSet().length;
-    return (100 - uniqueFaults * 15).clamp(0, 100);
+  static int calculateScore(List<MovementObservation> observations) {
+    final uniqueObservations = observations.map((o) => o.type).toSet().length;
+    return (100 - uniqueObservations * 15).clamp(0, 100);
   }
 
   // Firestore version uses a Timestamp for completedAt.
@@ -37,15 +37,15 @@ class ScreenResult {
       'goal': goal,
       'movementType': movementType.storageKey,
       'repCount': repCount,
-      'faults': faults.map((f) => f.toMap()).toList(),
+      'observations': observations.map((o) => o.toMap()).toList(),
       'completedAt': Timestamp.fromDate(completedAt),
       'score': score,
     };
   }
 
   factory ScreenResult.fromFirestore(Map<String, dynamic> data) {
-    final faultList = (data['faults'] as List<dynamic>? ?? [])
-        .map((f) => Fault.fromMap(f as Map<String, dynamic>))
+    final observationList = (data['observations'] as List<dynamic>? ?? [])
+        .map((o) => MovementObservation.fromMap(o as Map<String, dynamic>))
         .toList();
     final ts = data['completedAt'];
     final completedAt =
@@ -56,7 +56,7 @@ class ScreenResult {
       movementType: MovementTypeX.fromStorageKey(
           data['movementType'] as String? ?? ''),
       repCount: data['repCount'] as int? ?? 0,
-      faults: faultList,
+      observations: observationList,
       completedAt: completedAt,
       score: data['score'] as int? ?? 0,
     );
@@ -69,15 +69,15 @@ class ScreenResult {
       'goal': goal,
       'movementType': movementType.storageKey,
       'repCount': repCount,
-      'faults': faults.map((f) => f.toMap()).toList(),
+      'observations': observations.map((o) => o.toMap()).toList(),
       'completedAt': completedAt.toIso8601String(),
       'score': score,
     };
   }
 
   factory ScreenResult.fromJson(Map<String, dynamic> data) {
-    final faultList = (data['faults'] as List<dynamic>? ?? [])
-        .map((f) => Fault.fromMap(f as Map<String, dynamic>))
+    final observationList = (data['observations'] as List<dynamic>? ?? [])
+        .map((o) => MovementObservation.fromMap(o as Map<String, dynamic>))
         .toList();
     return ScreenResult(
       sport: data['sport'] as String? ?? '',
@@ -85,7 +85,7 @@ class ScreenResult {
       movementType: MovementTypeX.fromStorageKey(
           data['movementType'] as String? ?? ''),
       repCount: data['repCount'] as int? ?? 0,
-      faults: faultList,
+      observations: observationList,
       completedAt: DateTime.parse(data['completedAt'] as String),
       score: data['score'] as int? ?? 0,
     );

@@ -1,31 +1,31 @@
 // The core movement analysis logic. I track squat state via knee angle
-// and check four fault conditions on every frame while the user is in the squat.
-// I require 3 consecutive frames before registering a fault to avoid false positives.
+// and check four observation conditions on every frame while the user is in the squat.
+// I require 3 consecutive frames before registering an observation to avoid false positives.
 import 'dart:math';
 import 'package:flutter/painting.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 
 class SquatAnalyser {
   int repCount = 0;
   bool inSquat = false;
   String squatState = 'Standing';
 
-  // Consecutive frame counter per fault -- a fault must appear for 3 frames in a row.
-  Map<FaultType, int> faultFrameCounts = {
-    for (final t in FaultType.values) t: 0,
+  // Consecutive frame counter per observation -- an observation must appear for 3 frames in a row.
+  Map<MovementObservationType, int> observationFrameCounts = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  // Total frames each fault was active across the whole session -- used for severity.
-  Map<FaultType, int> faultTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  // Total frames each observation was active across the whole session -- used for intensity.
+  Map<MovementObservationType, int> observationTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  // Currently active faults shown on the live overlay.
-  Set<FaultType> activeFaults = {};
+  // Currently active observations shown on the live overlay.
+  Set<MovementObservationType> activeObservations = {};
 
-  // All faults seen this session -- persists across reps.
-  Set<FaultType> sessionFaults = {};
+  // All observations seen this session -- persists across reps.
+  Set<MovementObservationType> sessionObservations = {};
 
   double calculateAngle(Offset a, Offset b, Offset c) {
     final radians =
@@ -74,21 +74,21 @@ class SquatAnalyser {
     }
 
     if (inSquat) {
-      _analyseFaults(landmarks, imageSize);
+      _analyseObservations(landmarks, imageSize);
     } else {
-      // Reset consecutive counters and clear live faults on the way back up.
-      for (final type in FaultType.values) {
-        faultFrameCounts[type] = 0;
+      // Reset consecutive counters and clear live observations on the way back up.
+      for (final type in MovementObservationType.values) {
+        observationFrameCounts[type] = 0;
       }
-      activeFaults.clear();
+      activeObservations.clear();
     }
 
     return newRep;
   }
 
-  void _analyseFaults(
+  void _analyseObservations(
       Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
-    final detectedThisFrame = <FaultType>{};
+    final detectedThisFrame = <MovementObservationType>{};
 
     final leftHip = landmarks[PoseLandmarkType.leftHip];
     final leftKnee = landmarks[PoseLandmarkType.leftKnee];
@@ -103,13 +103,13 @@ class SquatAnalyser {
         rightHip != null && rightKnee != null) {
       final leftCave = leftKnee.dx > leftHip.dx + imageSize.width * 0.05;
       final rightCave = rightKnee.dx < rightHip.dx - imageSize.width * 0.05;
-      if (leftCave || rightCave) detectedThisFrame.add(FaultType.kneeCave);
+      if (leftCave || rightCave) detectedThisFrame.add(MovementObservationType.kneeCave);
     }
 
     // 2. Insufficient depth -- hip stays above knee.
     if (leftHip != null && leftKnee != null) {
       if (leftHip.dy < leftKnee.dy - imageSize.height * 0.03) {
-        detectedThisFrame.add(FaultType.depth);
+        detectedThisFrame.add(MovementObservationType.depth);
       }
     }
 
@@ -120,36 +120,36 @@ class SquatAnalyser {
         leftHip,
         Offset(leftHip.dx, leftHip.dy - 100),
       );
-      if (torsoAngle > 45) detectedThisFrame.add(FaultType.forwardLean);
+      if (torsoAngle > 45) detectedThisFrame.add(MovementObservationType.forwardLean);
     }
 
     // 4. Heel rise -- heel rises above the toe line.
     if (leftHeel != null && leftFootIndex != null) {
       if (leftHeel.dy < leftFootIndex.dy - imageSize.height * 0.02) {
-        detectedThisFrame.add(FaultType.heelRise);
+        detectedThisFrame.add(MovementObservationType.heelRise);
       }
     }
 
-    // Register a fault only after 3 consecutive frames to filter noise.
-    for (final type in FaultType.values) {
+    // Register an observation only after 3 consecutive frames to filter noise.
+    for (final type in MovementObservationType.values) {
       if (detectedThisFrame.contains(type)) {
-        faultFrameCounts[type] = (faultFrameCounts[type] ?? 0) + 1;
-        if ((faultFrameCounts[type] ?? 0) >= 3) {
-          activeFaults.add(type);
-          sessionFaults.add(type);
-          faultTotalFrames[type] = (faultTotalFrames[type] ?? 0) + 1;
+        observationFrameCounts[type] = (observationFrameCounts[type] ?? 0) + 1;
+        if ((observationFrameCounts[type] ?? 0) >= 3) {
+          activeObservations.add(type);
+          sessionObservations.add(type);
+          observationTotalFrames[type] = (observationTotalFrames[type] ?? 0) + 1;
         }
       } else {
-        faultFrameCounts[type] = 0;
-        activeFaults.remove(type);
+        observationFrameCounts[type] = 0;
+        activeObservations.remove(type);
       }
     }
   }
 
-  List<Fault> buildFaultList() {
-    return sessionFaults.map((type) {
-      final frames = faultTotalFrames[type] ?? 3;
-      return Fault.fromType(type, frames);
+  List<MovementObservation> buildObservationList() {
+    return sessionObservations.map((type) {
+      final frames = observationTotalFrames[type] ?? 3;
+      return MovementObservation.fromType(type, frames);
     }).toList();
   }
 
@@ -157,9 +157,9 @@ class SquatAnalyser {
     repCount = 0;
     inSquat = false;
     squatState = 'Standing';
-    faultFrameCounts = {for (final t in FaultType.values) t: 0};
-    faultTotalFrames = {for (final t in FaultType.values) t: 0};
-    activeFaults.clear();
-    sessionFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    observationTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    activeObservations.clear();
+    sessionObservations.clear();
   }
 }

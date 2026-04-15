@@ -5,7 +5,7 @@
 // Call switchSide() after the left phase to begin the right phase.
 import 'package:flutter/painting.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 
 class ShoulderRotationAnalyser {
   String activeSide = 'left';
@@ -18,19 +18,19 @@ class ShoulderRotationAnalyser {
   // Smaller y = higher in frame = better overhead reach.
   double? _peakWristDy;
 
-  Map<FaultType, int> _frameCounts = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> observationFrameCounts = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _leftTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> _leftTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _rightTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> _rightTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  Set<FaultType> _leftSessionFaults = {};
-  Set<FaultType> _rightSessionFaults = {};
-  Set<FaultType> activeFaults = {};
+  Set<MovementObservationType> _leftSessionObservations = {};
+  Set<MovementObservationType> _rightSessionObservations = {};
+  Set<MovementObservationType> activeObservations = {};
 
   int get activeRepCount =>
       activeSide == 'left' ? leftRepCount : rightRepCount;
@@ -39,8 +39,8 @@ class ShoulderRotationAnalyser {
     activeSide = 'right';
     inRaise = false;
     _peakWristDy = null;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    activeObservations.clear();
   }
 
   bool analyseFrame(
@@ -74,16 +74,16 @@ class ShoulderRotationAnalyser {
         inRaise = false;
         if (activeSide == 'left') { leftRepCount++; } else { rightRepCount++; }
         newRep = true;
-        _checkPeakFault(landmarks);
+        _checkPeakObservation(landmarks);
         _peakWristDy = null;
       }
     }
 
     if (inRaise) {
-      _analyseFaults(landmarks, imageSize);
+      _analyseObservations(landmarks, imageSize);
     } else {
-      _frameCounts[FaultType.limitedRotation] = 0;
-      activeFaults.remove(FaultType.limitedRotation);
+      observationFrameCounts[MovementObservationType.limitedRotation] = 0;
+      activeObservations.remove(MovementObservationType.limitedRotation);
     }
 
     return newRep;
@@ -91,28 +91,28 @@ class ShoulderRotationAnalyser {
 
   // At the end of each rep, check if the wrist ever reached above nose level.
   // If not, the user has limited overhead reach indicating restricted rotation.
-  void _checkPeakFault(Map<PoseLandmarkType, Offset> landmarks) {
+  void _checkPeakObservation(Map<PoseLandmarkType, Offset> landmarks) {
     if (_peakWristDy == null) return;
     final nose = landmarks[PoseLandmarkType.nose];
     if (nose == null) return;
 
-    // If the highest wrist position was still below the nose, flag the fault.
+    // If the highest wrist position was still below the nose, flag the observation.
     if (_peakWristDy! > nose.dy) {
-      final sessionFaults =
-          activeSide == 'left' ? _leftSessionFaults : _rightSessionFaults;
+      final sessionObservations =
+          activeSide == 'left' ? _leftSessionObservations : _rightSessionObservations;
       final totalFrames =
           activeSide == 'left' ? _leftTotalFrames : _rightTotalFrames;
-      sessionFaults.add(FaultType.limitedRotation);
+      sessionObservations.add(MovementObservationType.limitedRotation);
       // Use 10 pseudo-frames per flagged rep so severity scales with
       // how many reps show the restriction.
-      totalFrames[FaultType.limitedRotation] =
-          (totalFrames[FaultType.limitedRotation] ?? 0) + 10;
+      totalFrames[MovementObservationType.limitedRotation] =
+          (totalFrames[MovementObservationType.limitedRotation] ?? 0) + 10;
     }
   }
 
-  void _analyseFaults(
+  void _analyseObservations(
       Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
-    // Per-frame fault during raise: if wrist is above shoulder but below nose,
+    // Per-frame observation during raise: if wrist is above shoulder but below nose,
     // show the live limited-rotation pill as a real-time cue.
     final wrist = activeSide == 'left'
         ? landmarks[PoseLandmarkType.leftWrist]
@@ -122,35 +122,35 @@ class ShoulderRotationAnalyser {
     if (wrist != null && nose != null && _peakWristDy != null) {
       // Flag while wrist hasn't yet passed nose on the way up.
       if (wrist.dy > nose.dy) {
-        _frameCounts[FaultType.limitedRotation] =
-            (_frameCounts[FaultType.limitedRotation] ?? 0) + 1;
-        if ((_frameCounts[FaultType.limitedRotation] ?? 0) >= 3) {
-          activeFaults.add(FaultType.limitedRotation);
+        observationFrameCounts[MovementObservationType.limitedRotation] =
+            (observationFrameCounts[MovementObservationType.limitedRotation] ?? 0) + 1;
+        if ((observationFrameCounts[MovementObservationType.limitedRotation] ?? 0) >= 3) {
+          activeObservations.add(MovementObservationType.limitedRotation);
         }
       } else {
-        _frameCounts[FaultType.limitedRotation] = 0;
-        activeFaults.remove(FaultType.limitedRotation);
+        observationFrameCounts[MovementObservationType.limitedRotation] = 0;
+        activeObservations.remove(MovementObservationType.limitedRotation);
       }
     }
   }
 
-  List<Fault> buildFaultList() {
-    final faults = <Fault>[];
-    for (final type in _leftSessionFaults) {
-      faults.add(Fault.fromType(
+  List<MovementObservation> buildObservationList() {
+    final observations = <MovementObservation>[];
+    for (final type in _leftSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _leftTotalFrames[type] ?? 3,
         side: 'left',
       ));
     }
-    for (final type in _rightSessionFaults) {
-      faults.add(Fault.fromType(
+    for (final type in _rightSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _rightTotalFrames[type] ?? 3,
         side: 'right',
       ));
     }
-    return faults;
+    return observations;
   }
 
   void reset() {
@@ -159,11 +159,11 @@ class ShoulderRotationAnalyser {
     rightRepCount = 0;
     inRaise = false;
     _peakWristDy = null;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    _leftTotalFrames = {for (final t in FaultType.values) t: 0};
-    _rightTotalFrames = {for (final t in FaultType.values) t: 0};
-    _leftSessionFaults = {};
-    _rightSessionFaults = {};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    _leftTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _rightTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _leftSessionObservations = {};
+    _rightSessionObservations = {};
+    activeObservations.clear();
   }
 }

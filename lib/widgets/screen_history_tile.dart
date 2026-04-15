@@ -80,7 +80,7 @@ class ScreenHistoryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${result.faults.length} fault${result.faults.length == 1 ? '' : 's'}',
+                  '${result.observations.length} observation${result.observations.length == 1 ? '' : 's'}',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: PoiseColors.muted,

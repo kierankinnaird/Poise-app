@@ -5,21 +5,21 @@
 import 'dart:math';
 import 'package:flutter/painting.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 
 class HipHingeAnalyser {
   int repCount = 0;
   bool inHinge = false;
 
-  Map<FaultType, int> _frameCounts = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> observationFrameCounts = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _totalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> observationTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  Set<FaultType> _sessionFaults = {};
-  Set<FaultType> activeFaults = {};
+  Set<MovementObservationType> sessionObservations = {};
+  Set<MovementObservationType> activeObservations = {};
 
   // Returns true when a rep is completed on this frame.
   bool analyseFrame(
@@ -56,24 +56,24 @@ class HipHingeAnalyser {
     }
 
     if (inHinge) {
-      _analyseFaults(landmarks, imageSize);
+      _analyseObservations(landmarks, imageSize);
     } else {
       for (final type in [
-        FaultType.excessiveKneeBend,
-        FaultType.kneeCave,
-        FaultType.heelRise,
+        MovementObservationType.excessiveKneeBend,
+        MovementObservationType.kneeCave,
+        MovementObservationType.heelRise,
       ]) {
-        _frameCounts[type] = 0;
+        observationFrameCounts[type] = 0;
       }
-      activeFaults.clear();
+      activeObservations.clear();
     }
 
     return newRep;
   }
 
-  void _analyseFaults(
+  void _analyseObservations(
       Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
-    final detected = <FaultType>{};
+    final detected = <MovementObservationType>{};
 
     final leftHip = landmarks[PoseLandmarkType.leftHip];
     final leftKnee = landmarks[PoseLandmarkType.leftKnee];
@@ -94,7 +94,7 @@ class HipHingeAnalyser {
       final leftAngle = _angle(leftHip, leftKnee, leftAnkle);
       final rightAngle = _angle(rightHip, rightKnee, rightAnkle);
       if ((leftAngle + rightAngle) / 2 < 130) {
-        detected.add(FaultType.excessiveKneeBend);
+        detected.add(MovementObservationType.excessiveKneeBend);
       }
     }
 
@@ -103,31 +103,31 @@ class HipHingeAnalyser {
         rightHip != null && rightKnee != null) {
       final leftCave = leftKnee.dx > leftHip.dx + imageSize.width * 0.05;
       final rightCave = rightKnee.dx < rightHip.dx - imageSize.width * 0.05;
-      if (leftCave || rightCave) detected.add(FaultType.kneeCave);
+      if (leftCave || rightCave) detected.add(MovementObservationType.kneeCave);
     }
 
     // 3. Heel rise.
     if (leftHeel != null && leftFootIndex != null) {
       if (leftHeel.dy < leftFootIndex.dy - imageSize.height * 0.02) {
-        detected.add(FaultType.heelRise);
+        detected.add(MovementObservationType.heelRise);
       }
     }
 
     for (final type in [
-      FaultType.excessiveKneeBend,
-      FaultType.kneeCave,
-      FaultType.heelRise,
+      MovementObservationType.excessiveKneeBend,
+      MovementObservationType.kneeCave,
+      MovementObservationType.heelRise,
     ]) {
       if (detected.contains(type)) {
-        _frameCounts[type] = (_frameCounts[type] ?? 0) + 1;
-        if ((_frameCounts[type] ?? 0) >= 3) {
-          activeFaults.add(type);
-          _sessionFaults.add(type);
-          _totalFrames[type] = (_totalFrames[type] ?? 0) + 1;
+        observationFrameCounts[type] = (observationFrameCounts[type] ?? 0) + 1;
+        if ((observationFrameCounts[type] ?? 0) >= 3) {
+          activeObservations.add(type);
+          sessionObservations.add(type);
+          observationTotalFrames[type] = (observationTotalFrames[type] ?? 0) + 1;
         }
       } else {
-        _frameCounts[type] = 0;
-        activeFaults.remove(type);
+        observationFrameCounts[type] = 0;
+        activeObservations.remove(type);
       }
     }
   }
@@ -141,18 +141,18 @@ class HipHingeAnalyser {
     return angle;
   }
 
-  List<Fault> buildFaultList() {
-    return _sessionFaults.map((type) {
-      return Fault.fromType(type, _totalFrames[type] ?? 3);
+  List<MovementObservation> buildObservationList() {
+    return sessionObservations.map((type) {
+      return MovementObservation.fromType(type, observationTotalFrames[type] ?? 3);
     }).toList();
   }
 
   void reset() {
     repCount = 0;
     inHinge = false;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    _totalFrames = {for (final t in FaultType.values) t: 0};
-    _sessionFaults = {};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    observationTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    sessionObservations = {};
+    activeObservations.clear();
   }
 }

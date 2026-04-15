@@ -1,33 +1,33 @@
-// Displays a single detected fault with a severity chip.
-// Severity colour goes muted -> amber -> red to match the level of concern.
+// Displays a single movement observation with an intensity chip.
+// Intensity colour goes muted -> amber -> red for visual hierarchy.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 import '../theme/app_theme.dart';
 
-class FaultCard extends StatelessWidget {
-  final Fault fault;
+class MovementObservationCard extends StatelessWidget {
+  final MovementObservation observation;
 
-  const FaultCard({super.key, required this.fault});
+  const MovementObservationCard({super.key, required this.observation});
 
   Color _chipColor() {
-    switch (fault.severity) {
-      case FaultSeverity.mild:
+    switch (observation.intensity) {
+      case ObservationIntensity.minimal:
         return PoiseColors.muted;
-      case FaultSeverity.moderate:
+      case ObservationIntensity.moderate:
         return const Color(0xFFF5A623);
-      case FaultSeverity.significant:
+      case ObservationIntensity.significant:
         return PoiseColors.error;
     }
   }
 
   String _chipLabel() {
-    switch (fault.severity) {
-      case FaultSeverity.mild:
-        return 'MILD';
-      case FaultSeverity.moderate:
+    switch (observation.intensity) {
+      case ObservationIntensity.minimal:
+        return 'MINIMAL';
+      case ObservationIntensity.moderate:
         return 'MODERATE';
-      case FaultSeverity.significant:
+      case ObservationIntensity.significant:
         return 'SIGNIFICANT';
     }
   }
@@ -47,7 +47,7 @@ class FaultCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  fault.name,
+                  observation.name,
                   style: GoogleFonts.syne(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -79,7 +79,7 @@ class FaultCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            fault.description,
+            observation.description,
             style: GoogleFonts.dmSans(
               fontSize: 14,
               color: PoiseColors.muted,

@@ -1,46 +1,46 @@
 // Draws the skeleton overlay on top of the camera feed.
-// Fault connections are highlighted in red so the user can see exactly
-// which part of their movement is being flagged in real time.
+// Observation connections are highlighted in red so the user can see exactly
+// which part of their movement is being observed in real time.
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 import '../theme/app_theme.dart';
 
 class PosePainter {
-  // Maps each fault to the skeleton connections that should turn red when it fires.
-  static const Map<FaultType, List<List<PoseLandmarkType>>> faultConnections = {
-    FaultType.kneeCave: [
+  // Maps each observation type to the skeleton connections that should turn red when it fires.
+  static const Map<MovementObservationType, List<List<PoseLandmarkType>>> observationConnections = {
+    MovementObservationType.kneeCave: [
       [PoseLandmarkType.leftHip, PoseLandmarkType.leftKnee],
       [PoseLandmarkType.rightHip, PoseLandmarkType.rightKnee],
     ],
-    FaultType.depth: [
+    MovementObservationType.depth: [
       [PoseLandmarkType.leftHip, PoseLandmarkType.leftKnee],
     ],
-    FaultType.forwardLean: [
+    MovementObservationType.forwardLean: [
       [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip],
     ],
-    FaultType.heelRise: [
+    MovementObservationType.heelRise: [
       [PoseLandmarkType.leftAnkle, PoseLandmarkType.leftHeel],
       [PoseLandmarkType.rightAnkle, PoseLandmarkType.rightHeel],
     ],
-    FaultType.hipDrop: [
+    MovementObservationType.hipDrop: [
       [PoseLandmarkType.leftHip, PoseLandmarkType.rightHip],
     ],
-    FaultType.excessiveSway: [
+    MovementObservationType.excessiveSway: [
       [PoseLandmarkType.leftAnkle, PoseLandmarkType.leftKnee],
       [PoseLandmarkType.rightAnkle, PoseLandmarkType.rightKnee],
     ],
-    FaultType.armFallForward: [
+    MovementObservationType.armFallForward: [
       [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftElbow],
       [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightElbow],
     ],
-    FaultType.limitedRotation: [
+    MovementObservationType.limitedRotation: [
       [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftElbow],
       [PoseLandmarkType.leftElbow, PoseLandmarkType.leftWrist],
       [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightElbow],
       [PoseLandmarkType.rightElbow, PoseLandmarkType.rightWrist],
     ],
-    FaultType.excessiveKneeBend: [
+    MovementObservationType.excessiveKneeBend: [
       [PoseLandmarkType.leftHip, PoseLandmarkType.leftKnee],
       [PoseLandmarkType.leftKnee, PoseLandmarkType.leftAnkle],
       [PoseLandmarkType.rightHip, PoseLandmarkType.rightKnee],
@@ -53,22 +53,22 @@ class PosePainterDelegate extends CustomPainter {
   final List<Map<PoseLandmarkType, Offset>> smoothedLandmarks;
   final Size imageSize;
   final bool inSquat;
-  final Set<FaultType> activeFaults;
+  final Set<MovementObservationType> activeObservations;
   final bool isFrontCamera;
 
   PosePainterDelegate({
     required this.smoothedLandmarks,
     required this.imageSize,
     required this.inSquat,
-    this.activeFaults = const {},
+    this.activeObservations = const {},
     this.isFrontCamera = false,
   });
 
   // Build a set of connection key strings so I can look them up in O(1).
   Set<String> get _errorConnectionKeys {
     final keys = <String>{};
-    for (final fault in activeFaults) {
-      final connections = PosePainter.faultConnections[fault] ?? [];
+    for (final observation in activeObservations) {
+      final connections = PosePainter.observationConnections[observation] ?? [];
       for (final conn in connections) {
         keys.add('${conn[0].index}-${conn[1].index}');
         keys.add('${conn[1].index}-${conn[0].index}');
@@ -79,7 +79,7 @@ class PosePainterDelegate extends CustomPainter {
 
   // Accent green in a clean squat, off-white otherwise.
   Color get _baseColor {
-    if (inSquat && activeFaults.isEmpty) return PoiseColors.accent;
+    if (inSquat && activeObservations.isEmpty) return PoiseColors.accent;
     return PoiseColors.offWhite.withValues(alpha: 0.6);
   }
 
@@ -135,10 +135,10 @@ class PosePainterDelegate extends CustomPainter {
         );
       }
 
-      // Collect all joints involved in active faults so I can colour them red.
+      // Collect all joints involved in active observations so I can colour them red.
       final errorJoints = <PoseLandmarkType>{};
-      for (final fault in activeFaults) {
-        final connections = PosePainter.faultConnections[fault] ?? [];
+      for (final observation in activeObservations) {
+        final connections = PosePainter.observationConnections[observation] ?? [];
         for (final conn in connections) {
           errorJoints.addAll(conn);
         }

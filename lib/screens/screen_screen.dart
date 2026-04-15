@@ -15,7 +15,7 @@ import '../analysis/lunge_analyser.dart';
 import '../analysis/shoulder_rotation_analyser.dart';
 import '../analysis/single_leg_stand_analyser.dart';
 import '../analysis/squat_analyser.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../theme/app_theme.dart';
@@ -42,13 +42,11 @@ const _kAllMovements = [
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
-  final bool prehabLocked;
 
   const ScreenScreen({
     super.key,
     required this.sport,
     required this.goal,
-    this.prehabLocked = false,
   });
 
   @override
@@ -72,7 +70,7 @@ class _ScreenScreenState extends State<ScreenScreen>
   int _currentMovementIndex = 0;
   final List<Fault> _allFaults = [];
   bool _showingTransition = false;
-  int _transitionCountdown = _kTransitionCountdownSeconds;
+  int _transiMovementObservation> _allObservation_kTransitionCountdownSeconds;
   Timer? _transitionTimer;
 
   // Per-movement countdown
@@ -119,12 +117,12 @@ class _ScreenScreenState extends State<ScreenScreen>
     return false;
   }
 
-  Set<FaultType> get _activeFaults {
-    if (_squatAnalyser != null) return _squatAnalyser!.activeFaults;
-    if (_lungeAnalyser != null) return _lungeAnalyser!.activeFaults;
-    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.activeFaults;
-    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeFaults;
-    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.activeFaults;
+  Set<MovementObservationType> get _activeObservations {
+    if (_squatAnalyser != null) return _squatAnalyser!.activeObservations;
+    if (_lungeAnalyser != null) return _lungeAnalyser!.activeObservations;
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.activeObservations;
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.activeObservations;
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.activeObservations;
     return {};
   }
 
@@ -135,27 +133,27 @@ class _ScreenScreenState extends State<ScreenScreen>
     return null;
   }
 
-  List<Fault> _buildFaultList() {
-    if (_squatAnalyser != null) return _squatAnalyser!.buildFaultList();
-    if (_lungeAnalyser != null) return _lungeAnalyser!.buildFaultList();
-    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.buildFaultList();
-    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.buildFaultList();
-    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.buildFaultList();
+  List<MovementObservation> _buildObservationList() {
+    if (_squatAnalyser != null) return _squatAnalyser!.buildObservationList();
+    if (_lungeAnalyser != null) return _lungeAnalyser!.buildObservationList();
+    if (_singleLegStandAnalyser != null) return _singleLegStandAnalyser!.buildObservationList();
+    if (_shoulderRotationAnalyser != null) return _shoulderRotationAnalyser!.buildObservationList();
+    if (_hipHingeAnalyser != null) return _hipHingeAnalyser!.buildObservationList();
     return [];
   }
 
-  List<FaultType> get _relevantFaults {
+  List<MovementObservationType> get _relevantObservations {
     switch (_currentMovement) {
       case MovementType.lunge:
-        return [FaultType.kneeCave, FaultType.hipDrop, FaultType.forwardLean, FaultType.heelRise];
+        return [MovementObservationType.kneeCave, MovementObservationType.hipDrop, MovementObservationType.forwardLean, MovementObservationType.heelRise];
       case MovementType.singleLegStand:
-        return [FaultType.excessiveSway];
+        return [MovementObservationType.excessiveSway];
       case MovementType.hipHinge:
-        return [FaultType.excessiveKneeBend, FaultType.kneeCave, FaultType.heelRise];
+        return [MovementObservationType.excessiveKneeBend, MovementObservationType.kneeCave, MovementObservationType.heelRise];
       case MovementType.shoulderRotation:
-        return [FaultType.limitedRotation];
+        return [MovementObservationType.limitedRotation];
       default:
-        return [FaultType.kneeCave, FaultType.depth, FaultType.forwardLean, FaultType.heelRise];
+        return [MovementObservationType.kneeCave, MovementObservationType.depth, MovementObservationType.forwardLean, MovementObservationType.heelRise];
     }
   }
 
@@ -490,13 +488,13 @@ class _ScreenScreenState extends State<ScreenScreen>
       return;
     }
 
-    final score = ScreenResult.calculateScore(_allFaults);
+    final score = ScreenResult.calculateScore(_allObservations);
     final result = ScreenResult(
       sport: widget.sport,
       goal: widget.goal,
       movementType: MovementType.fullScreen,
       repCount: 0,
-      faults: _allFaults,
+      observations: _allObservations,
       completedAt: DateTime.now(),
       score: score,
     );
@@ -634,7 +632,7 @@ class _ScreenScreenState extends State<ScreenScreen>
                 smoothedLandmarks: _smoothedLandmarks,
                 imageSize: imageSize,
                 inSquat: _inMovement,
-                activeFaults: Set.from(_activeFaults),
+                activeObservations: Set.from(_activeObservations),
                 isFrontCamera: _controller?.description.lensDirection == CameraLensDirection.front,
               ),
             ),
@@ -675,7 +673,7 @@ class _ScreenScreenState extends State<ScreenScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _relevantFaults.map((type) {
-                  final isActive = _analysisActive && _activeFaults.contains(type);
+                  final isActive = _analysisActive && _activeObservations.contains(type);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Container(

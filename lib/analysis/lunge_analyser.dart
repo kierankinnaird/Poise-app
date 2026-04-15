@@ -4,7 +4,7 @@
 import 'dart:math';
 import 'package:flutter/painting.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import '../models/fault.dart';
+import '../models/movement_observation.dart';
 
 class LungeAnalyser {
   String activeSide = 'left';
@@ -13,24 +13,24 @@ class LungeAnalyser {
   int rightRepCount = 0;
   bool inLunge = false;
 
-  // Per-frame consecutive counter -- fault must appear 3 frames in a row.
-  Map<FaultType, int> _frameCounts = {
-    for (final t in FaultType.values) t: 0,
+  // Per-frame consecutive counter -- observation must appear 3 frames in a row.
+  Map<MovementObservationType, int> observationFrameCounts = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  // Total frames each fault was active per side.
-  Map<FaultType, int> _leftTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  // Total frames each observation was active per side.
+  Map<MovementObservationType, int> _leftTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
-  Map<FaultType, int> _rightTotalFrames = {
-    for (final t in FaultType.values) t: 0,
+  Map<MovementObservationType, int> _rightTotalFrames = {
+    for (final t in MovementObservationType.values) t: 0,
   };
 
-  Set<FaultType> _leftSessionFaults = {};
-  Set<FaultType> _rightSessionFaults = {};
+  Set<MovementObservationType> _leftSessionObservations = {};
+  Set<MovementObservationType> _rightSessionObservations = {};
 
-  // Live faults shown on the overlay during the active frame.
-  Set<FaultType> activeFaults = {};
+  // Live observations shown on the overlay during the active frame.
+  Set<MovementObservationType> activeObservations = {};
 
   int get activeRepCount =>
       activeSide == 'left' ? leftRepCount : rightRepCount;
@@ -39,8 +39,8 @@ class LungeAnalyser {
   void switchSide() {
     activeSide = 'right';
     inLunge = false;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    activeObservations.clear();
   }
 
   // Returns true when a rep is completed on this frame.
@@ -75,20 +75,20 @@ class LungeAnalyser {
     }
 
     if (inLunge) {
-      _analyseFaults(landmarks, imageSize);
+      _analyseObservations(landmarks, imageSize);
     } else {
-      for (final type in FaultType.values) {
-        _frameCounts[type] = 0;
+      for (final type in MovementObservationType.values) {
+        observationFrameCounts[type] = 0;
       }
-      activeFaults.clear();
+      activeObservations.clear();
     }
 
     return newRep;
   }
 
-  void _analyseFaults(
+  void _analyseObservations(
       Map<PoseLandmarkType, Offset> landmarks, Size imageSize) {
-    final detected = <FaultType>{};
+    final detected = <MovementObservationType>{};
 
     final leadHip = activeSide == 'left'
         ? landmarks[PoseLandmarkType.leftHip]
@@ -111,13 +111,13 @@ class LungeAnalyser {
       final cave = activeSide == 'left'
           ? leadKnee.dx > leadHip.dx + imageSize.width * 0.05
           : leadKnee.dx < leadHip.dx - imageSize.width * 0.05;
-      if (cave) detected.add(FaultType.kneeCave);
+      if (cave) detected.add(MovementObservationType.kneeCave);
     }
 
     // 2. Hip drop -- pelvis tilts, one hip significantly lower than the other.
     if (leftHip != null && rightHip != null) {
       if ((leftHip.dy - rightHip.dy).abs() > imageSize.height * 0.04) {
-        detected.add(FaultType.hipDrop);
+        detected.add(MovementObservationType.hipDrop);
       }
     }
 
@@ -128,32 +128,32 @@ class LungeAnalyser {
         leftHip,
         Offset(leftHip.dx, leftHip.dy - 100),
       );
-      if (torsoAngle > 45) detected.add(FaultType.forwardLean);
+      if (torsoAngle > 45) detected.add(MovementObservationType.forwardLean);
     }
 
     // 4. Heel rise on lead foot.
     if (leadHeel != null && leadToe != null) {
       if (leadHeel.dy < leadToe.dy - imageSize.height * 0.02) {
-        detected.add(FaultType.heelRise);
+        detected.add(MovementObservationType.heelRise);
       }
     }
 
     final totalFrames =
         activeSide == 'left' ? _leftTotalFrames : _rightTotalFrames;
-    final sessionFaults =
-        activeSide == 'left' ? _leftSessionFaults : _rightSessionFaults;
+    final sessionObservations =
+        activeSide == 'left' ? _leftSessionObservations : _rightSessionObservations;
 
-    for (final type in FaultType.values) {
+    for (final type in MovementObservationType.values) {
       if (detected.contains(type)) {
-        _frameCounts[type] = (_frameCounts[type] ?? 0) + 1;
-        if ((_frameCounts[type] ?? 0) >= 3) {
-          activeFaults.add(type);
-          sessionFaults.add(type);
+        observationFrameCounts[type] = (observationFrameCounts[type] ?? 0) + 1;
+        if ((observationFrameCounts[type] ?? 0) >= 3) {
+          activeObservations.add(type);
+          sessionObservations.add(type);
           totalFrames[type] = (totalFrames[type] ?? 0) + 1;
         }
       } else {
-        _frameCounts[type] = 0;
-        activeFaults.remove(type);
+        observationFrameCounts[type] = 0;
+        activeObservations.remove(type);
       }
     }
   }
@@ -167,23 +167,23 @@ class LungeAnalyser {
     return angle;
   }
 
-  List<Fault> buildFaultList() {
-    final faults = <Fault>[];
-    for (final type in _leftSessionFaults) {
-      faults.add(Fault.fromType(
+  List<MovementObservation> buildObservationList() {
+    final observations = <MovementObservation>[];
+    for (final type in _leftSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _leftTotalFrames[type] ?? 3,
         side: 'left',
       ));
     }
-    for (final type in _rightSessionFaults) {
-      faults.add(Fault.fromType(
+    for (final type in _rightSessionObservations) {
+      observations.add(MovementObservation.fromType(
         type,
         _rightTotalFrames[type] ?? 3,
         side: 'right',
       ));
     }
-    return faults;
+    return observations;
   }
 
   void reset() {
@@ -191,11 +191,11 @@ class LungeAnalyser {
     leftRepCount = 0;
     rightRepCount = 0;
     inLunge = false;
-    _frameCounts = {for (final t in FaultType.values) t: 0};
-    _leftTotalFrames = {for (final t in FaultType.values) t: 0};
-    _rightTotalFrames = {for (final t in FaultType.values) t: 0};
-    _leftSessionFaults = {};
-    _rightSessionFaults = {};
-    activeFaults.clear();
+    observationFrameCounts = {for (final t in MovementObservationType.values) t: 0};
+    _leftTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _rightTotalFrames = {for (final t in MovementObservationType.values) t: 0};
+    _leftSessionObservations = {};
+    _rightSessionObservations = {};
+    activeObservations.clear();
   }
 }

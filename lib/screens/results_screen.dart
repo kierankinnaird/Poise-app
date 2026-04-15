@@ -1,13 +1,13 @@
 // ignore_for_file: avoid_print
-// Shows the score, detected faults, and prehab plan after a screen completes.
+// Shows the score, movement observations, and fitness suggestions after a screen completes.
 // I save the result to SharedPreferences on every screen (guest-safe) and to
 // Firestore only if the user is signed in.
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../analysis/prehab_generator.dart';
-import '../models/fault.dart';
+import '../analysis/movement_suggestions_generator.dart';
+import '../models/movement_observation.dart';
 import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../services/auth_service.dart';
@@ -22,16 +22,23 @@ import 'screen_screen.dart';
 const _kPrefLastResult = 'last_screen_result';
 const _kPrefHistory = 'screen_history';
 
-const _kScreenComplete = 'SCREEN COMPLETE';
+const _kScreenComplete = 'ANALYSIS COMPLETE';
 const _kYourResults = 'Your results.';
 const _kMovementScore = 'Movement score';
-const _kFaultsLabel = 'FAULTS DETECTED';
-const _kNoFaultsTitle = 'No faults detected.';
-const _kNoFaultsBody = 'Good form.';
-const _kPlanLabel = 'YOUR PREHAB PLAN';
+const _kObservationsLabel = 'MOVEMENT OBSERVATIONS';
+const _kNoObservationsTitle = 'No observations.';
+const _kNoObservationsBody = 'Great work!';
+const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
 const _kScreenAgain = 'Screen again';
 const _kViewProgress = 'View my progress';
 const _kBackToHome = 'Back to home';
+
+const _kDisclaimer = '''
+IMPORTANT: This app provides general fitness feedback for educational purposes only.
+• NOT a medical device
+• NOT medical advice
+• Consult a healthcare provider if you have pain or injury concerns
+''';
 
 const _kMonths = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -116,25 +123,25 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  // Groups faults by type and surfaces left/right asymmetry when a fault
-  // only appears on one side. Bilateral faults (same type, both sides) are
+  // Groups observations by type and surfaces left/right asymmetry when an observation
+  // only appears on one side. Bilateral observations (same type, both sides) are
   // shown individually without an asymmetry note since both sides are affected.
-  List<Widget> _buildFaultCards(List<Fault> faults) {
-    final byType = <FaultType, List<Fault>>{};
-    for (final fault in faults) {
-      byType.putIfAbsent(fault.type, () => []).add(fault);
+  List<Widget> _buildObservationCards(List<MovementObservation> observations) {
+    final byType = <MovementObservationType, List<MovementObservation>>{};
+    for (final observation in observations) {
+      byType.putIfAbsent(observation.type, () => []).add(observation);
     }
 
     final widgets = <Widget>[];
     for (final group in byType.values) {
-      final sides = group.map((f) => f.side).toSet();
-      // One-sided fault on a unilateral movement = asymmetry worth flagging.
+      final sides = group.map((o) => o.side).toSet();
+      // One-sided observation on a unilateral movement = asymmetry worth noting.
       final isAsymmetric = sides.length == 1 && sides.first != null;
 
-      for (final fault in group) {
+      for (final observation in group) {
         widgets.add(Padding(
           padding: EdgeInsets.only(bottom: isAsymmetric ? 4 : 8),
-          child: FaultCard(fault: fault),
+          child: MovementObservationCard(observation: observation),
         ));
       }
 
@@ -152,7 +159,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
             child: Text(
-              'Detected on one side only. This may indicate a left/right imbalance rather than a general technique issue.',
+              'Observed on one side only. This is common and may indicate natural asymmetries in your movement.',
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: const Color(0xFFF5A623),
@@ -167,9 +174,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final plan = widget.prehabLocked
-        ? null
-        : PrehabGenerator.generate(widget.result.faults);
+    final plan = MovementSuggestionsGenerator.generate(widget.result.observations);
     final score = widget.result.score;
     final scoreColor = _scoreColor(score);
 
@@ -261,9 +266,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
               const SizedBox(height: 28),
 
-              // Faults section
+              // Movement observations section
               Text(
-                _kFaultsLabel,
+                _kObservationsLabel,
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -272,7 +277,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (widget.result.faults.isEmpty)
+              if (widget.result.observations.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -284,7 +289,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _kNoFaultsTitle,
+                        _kNoObservationsTitle,
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: PoiseColors.accent,
@@ -292,7 +297,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _kNoFaultsBody,
+                        _kNoObservationsBody,
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: PoiseColors.muted,
@@ -302,13 +307,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
                 )
               else
-                ..._buildFaultCards(widget.result.faults),
+                ..._buildObservationCards(widget.result.observations),
 
               const SizedBox(height: 24),
 
-              // Prehab plan section
+              // Suggested exercises section
               Text(
-                _kPlanLabel,
+                _kSuggestionsLabel,
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -317,47 +322,50 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (widget.prehabLocked)
+              if (plan!.exercises.isNotEmpty)
+                ...plan.exercises.map((exercise) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ExerciseCard(exercise: exercise),
+                    ))
+              else
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: PoiseColors.card,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: PoiseColors.muted.withValues(alpha: 0.2),
+                  ),
+                  child: Text(
+                    'No suggestions available. Great effort!',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: PoiseColors.muted,
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.lock_outline,
-                          color: PoiseColors.muted, size: 20),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Prehab plan not included',
-                        style: GoogleFonts.syne(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: PoiseColors.offWhite,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Your practitioner can see your faults and scores. Subscribe individually to unlock your personalised exercise plan.',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: PoiseColors.muted,
-                        ),
-                      ),
-                    ],
+                ),
+
+              const SizedBox(height: 24),
+
+              // Disclaimer
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: PoiseColors.card,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: PoiseColors.muted.withValues(alpha: 0.2),
                   ),
-                )
-              else
-                ...plan!.exercises.map((exercise) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ExerciseCard(exercise: exercise),
-                    )),
+                ),
+                child: Text(
+                  _kDisclaimer,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: PoiseColors.muted,
+                    height: 1.5,
+                  ),
+                ),
+              ),
 
               // CTAs -- hidden in read-only mode.
               if (!widget.readOnly) ...[

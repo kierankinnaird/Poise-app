@@ -1,8 +1,8 @@
-// A single prehab exercise card. Sets and duration are shown in accent colour
+// A single exercise card. Sets and duration are shown in accent colour
 // so they stand out from the description text below.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/prehab_plan.dart';
+import '../models/fitness_plan.dart';
 import '../theme/app_theme.dart';
 
 class ExerciseCard extends StatelessWidget {

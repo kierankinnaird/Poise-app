@@ -7,9 +7,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../analysis/prehab_generator.dart';
+import '../analysis/movement_suggestions_generator.dart';
 import '../models/movement_type.dart';
-import '../models/prehab_plan.dart';
+import '../models/fitness_plan.dart';
 import '../models/screen_result.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
@@ -27,8 +27,8 @@ const _kStartLabel = 'Start a screen';
 const _kStartSub = 'Takes about 2 minutes';
 const _kScreensDone = 'Screens done';
 const _kAvgScore = 'Avg score';
-const _kPlanLabel = 'YOUR PREHAB PLAN';
-const _kNoPlan = 'Complete a screen to get your plan.';
+const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
+const _kNoSuggestions = 'Complete a screen to get exercise suggestions.';
 const _kLastScreen = 'LAST SCREEN';
 
 Color _scoreColor(int score) {
@@ -62,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (_) => ScreenScreen(
                       sport: profile.sport,
                       goal: profile.goal,
-                      prehabLocked: profile.prehabLocked,
                     )))
             .then((_) {
           if (mounted) setState(() => _selectedIndex = 0);
@@ -293,7 +292,7 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
 
     final result = _lastResult;
     final plan =
-        result != null ? PrehabGenerator.generate(result.faults) : null;
+        result != null ? MovementSuggestionsGenerator.generate(result.observations) : null;
 
     return Scaffold(
       backgroundColor: PoiseColors.background,
@@ -424,7 +423,7 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
               const SizedBox(height: 20),
 
               Text(
-                _kPlanLabel,
+                _kSuggestionsLabel,
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -433,7 +432,7 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (_profile?.prehabLocked == true)
+              if (plan == null || plan.exercises.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -442,23 +441,7 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Subscribe individually to unlock your prehab plan.',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: PoiseColors.muted,
-                    ),
-                  ),
-                )
-              else if (plan == null || plan.exercises.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _kNoPlan,
+                    _kNoSuggestions,
                     style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: PoiseColors.muted,
