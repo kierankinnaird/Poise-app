@@ -45,8 +45,8 @@ class NotificationService {
   Future<void> scheduleRescreenReminder() async {
     const androidDetails = AndroidNotificationDetails(
       'poise_rescreen',
-      'Rescreen Reminders',
-      channelDescription: 'Weekly movement screen reminders',
+      'Audit Reminders',
+      channelDescription: 'Weekly movement audit reminders',
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
     );
@@ -58,7 +58,7 @@ class NotificationService {
 
     await _plugin.periodicallyShow(
       _rescreenNotificationId,
-      'Time for your Poise screen',
+      'Time for your Poise audit',
       'Check your movement quality, it only takes 2 minutes.',
       RepeatInterval.weekly,
       details,

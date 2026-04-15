@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
 
-const _kTagline = 'Your personal movement screen.';
+const _kTagline = 'Your personal movement audit.';
 const _kEmailHint = 'Email';
 const _kPasswordHint = 'Password';
 const _kSignUpTab = 'Sign up';

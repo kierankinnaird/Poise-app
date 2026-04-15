@@ -15,7 +15,7 @@ import 'onboarding_screen.dart';
 const _kTitle = 'Profile.';
 const _kMySport = 'MY SPORT';
 const _kMembership = 'MEMBERSHIP';
-const _kRescreenReminders = 'RESCREEN REMINDERS';
+const _kRescreenReminders = 'AUDIT REMINDERS';
 const _kAccount = 'ACCOUNT';
 const _kEraseHistory = 'Erase history';
 const _kWeeklyReminder = 'Weekly reminder';
@@ -86,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         content: Text(
-          'This will permanently delete all your past screens and progress. This cannot be undone.',
+          'This will permanently delete all your past audits and progress. This cannot be undone.',
           style: GoogleFonts.dmSans(fontSize: 14, color: PoiseColors.muted),
         ),
         actions: [

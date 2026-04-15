@@ -1,413 +1,296 @@
-# Regulatory Compliance: Wellbeing App Classification
+# Regulatory Compliance: General Wellbeing App Classification
 
-## Status: ✅ IMPLEMENTATION COMPLETE
+## Status: 🟡 IN PROGRESS
 
-**As of April 15, 2026:** All Phase 1 compliance tasks have been successfully implemented. The Poise app has been refactored to meet wellness app classification requirements. All medical/therapeutic terminology has been replaced with neutral wellness terminology throughout the codebase.
-
----
-
-## Overview
-
-This document outlines the regulatory framework for maintaining Poise as a **general wellness/fitness app** rather than a **health device**. This classification is critical for app store approval, liability protection, and regulatory compliance.
+**Last updated:** April 15, 2026  
+**Goal:** Ensure Poise is classified as a **general wellbeing / fitness app** and avoids classification as a medical or health device under FDA, MHRA, EU MDR, Apple App Store, and Google Play policies.
 
 ---
 
-## 1. The Health Device vs. Wellness App Distinction
+## 1. Why This Matters
 
-### What Makes an App a "Health Device"?
+### Health Device Classification Triggers
 
-An app is classified as a medical device if it:
-- Claims to diagnose, treat, cure, or prevent diseases/medical conditions
-- Claims to affect bodily function or structure in a therapeutic way
-- Analyzes data to identify medical abnormalities or diseases
-- Provides therapeutic recommendations based on medical assessment
-- Is intended for use by healthcare professionals or in clinical settings
+An app is regulated as a medical device (FDA Class II / EU MDR Class IIa) if it:
 
-### Our Classification: General Wellness App
+- Claims to **diagnose, treat, cure, or prevent** a disease or medical condition
+- Performs **clinical assessment** of bodily function or structure
+- Provides **therapeutic recommendations** based on detected abnormalities
+- Uses language implying **medical authority** (e.g. "screening", "prehab", "corrective")
+- Markets to people with **injuries or medical conditions**
+- Is intended for use by or under the supervision of **healthcare professionals**
 
-Poise is a **general wellness/fitness app** because it:
-- Provides **educational feedback** about movement observation
-- Suggests general fitness activities and exercises
-- Is intended for general audience fitness interest, NOT medical management
-- Does NOT claim to diagnose movement dysfunction or injuries
-- Does NOT claim therapeutic or corrective intent
-- Does NOT market specifically to people with injuries or medical conditions
+### Our Target: General Wellbeing App
+
+Under FDA guidance (*General Wellness: Policy for Low Risk Devices*, 2019) and EU MDR Article 2, a general wellbeing app:
+
+- Provides **educational information** about movement and fitness
+- Offers **general fitness suggestions** for a healthy population
+- Makes **no claims** about diagnosing, treating, or preventing conditions
+- Is intended for **general audience** fitness interest
+- Uses **observational, neutral** language throughout
 
 ---
 
-## 2. Critical Changes Required
+## 2. What Has Already Been Done ✅
 
-### 2.1 Terminology Overhaul
+| Change | Status |
+|---|---|
+| `Fault` → `MovementObservation` model class | ✅ Done |
+| `FaultType` → `MovementObservationType` enum | ✅ Done |
+| `prehab_plan.dart` → `fitness_plan.dart` | ✅ Done |
+| `prehab_generator.dart` → `movement_suggestions_generator.dart` | ✅ Done |
+| `ObservationIntensity` replaces severity language | ✅ Done |
+| Results screen disclaimer added | ✅ Done |
+| "Screen" → "Audit" in all user-facing text | ✅ Done |
+| Notification text updated (Audit Reminders) | ✅ Done |
+| Pose painter uses `activeObservations` | ✅ Done |
+| `screen_result.dart` uses `.observations` not `.faults` | ✅ Done |
 
-**MUST CHANGE:**
+---
 
-| Current Term | Change To | Rationale |
+## 3. Outstanding Changes Required
+
+### 3.1 🔴 Critical — User-Facing Strings With Regulated Language
+
+These are **visible to users** and would be flagged by a regulatory reviewer or app store reviewer.
+
+| # | File | Line | Current Text | Required Change |
+|---|---|---|---|---|
+| 1 | `lib/screens/home_screen.dart` | 507 | *"We detect movement faults and prescribe corrective exercises tailored to what we find."* | *"We observe your movement patterns and suggest exercises you might enjoy."* |
+| 2 | `lib/screens/onboarding_screen.dart` | 25 | *"Stay injury-free"* | *"Move with confidence"* |
+| 3 | `lib/screens/onboarding_screen.dart` | 26 | *"Reduce injury risk before it happens"* | *"Explore your movement quality"* |
+| 4 | `lib/screens/onboarding_screen.dart` | 30 | *"Fix the faults holding back your performance"* | *"Understand the patterns shaping your movement"* |
+| 5 | `lib/screens/history_screen.dart` | 548 | *"COMMON FAULTS"* | *"COMMON OBSERVATIONS"* |
+| 6 | `lib/screens/history_screen.dart` | 746 | *"X fault(s)"* | *"X observation(s)"* |
+
+### 3.2 🟡 High — Code Identifiers Using "prehab" / "fault"
+
+Not user-visible, but create risk during app store review (reviewers can inspect source) and make the codebase inconsistent. Renaming these also prevents future developers from accidentally using the old terminology.
+
+| # | File | Current Identifier | Rename To |
+|---|---|---|---|
+| 1 | `lib/models/user_profile.dart` | `prehabLocked` field | `suggestionsLocked` |
+| 2 | `lib/screens/screen_screen.dart` | `prehabLocked` parameter | `suggestionsLocked` |
+| 3 | `lib/screens/results_screen.dart` | `prehabLocked` field | `suggestionsLocked` |
+| 4 | `lib/screens/home_screen.dart` | `prehabLocked: profile.prehabLocked` | `suggestionsLocked: profile.suggestionsLocked` |
+| 5 | `lib/services/firestore_service.dart` | `'prehabLocked': true` | `'suggestionsLocked': true` |
+| 6 | `lib/screens/home_screen.dart` | `_PrehabExerciseTile` class | `_SuggestedExerciseTile` |
+| 7 | `lib/screens/home_screen.dart` | `faultSummary` variable | `observationSummary` |
+| 8 | `lib/widgets/fault_card.dart` | **Filename** | Rename to `observation_card.dart` |
+
+### 3.3 ⚪ Low — Code Comments With Stale Terminology
+
+These are not user-visible and carry no regulatory risk, but should be cleaned up for consistency.
+
+| File | Line | Current Comment |
 |---|---|---|
-| "Prehab Plan" | "Fitness Suggestions" / "Movement Variations" | "Prehab" implies pre-rehabilitation (medical) |
-| "Fault Detection" | "Movement Observation" / "Form Analysis" | "Fault" implies dysfunction requiring correction |
-| "Corrective Exercises" / "Correction" | "Suggested Exercises" / "Exercise Variations" | Implies therapeutic intent |
-| "Movement Dysfunction" | "Movement Variation" / "Form Pattern" | Avoids medical terminology |
-| "Severity" (mild/moderate/significant) | Remove or use "Intensity" for feedback | Severity implies medical classification |
-| "Knee Cave (Fault)" | "Knee Inward Pattern Observed" | Neutral observation, not judgment |
+| `lib/models/user_profile.dart` | 2 | *"prehab plan"* |
+| `lib/models/user_profile.dart` | 14 | *"faults only, no prehab plan"* |
+| `lib/models/organisation.dart` | 2 | *"faults only, no prehab plan"* |
+| `lib/screens/results_screen.dart` | 65 | *"faults shown, plan hidden"* |
+| `lib/screens/home_screen.dart` | 177 | *"top prehab exercise"* |
+| `lib/screens/screen_screen.dart` | 453 | *"_allFaults"* |
+| `lib/screens/history_screen.dart` | 559 | *"high-frequency faults"* |
+| `lib/analysis/shoulder_rotation_analyser.dart` | 106 | *"severity"* |
 
-**FILES UPDATED (Completed):**
-- ✅ Created `fitness_plan.dart` (replaces prehab_plan.dart)
-- ✅ Created `movement_suggestions_generator.dart` (replaces prehab_generator.dart)
-- ✅ Created `movement_observation.dart` (replaces fault.dart)
-- ✅ Updated all screen labels and UI strings (25+ files)
-- ⏳ Push notification messages (pending in Phase 2)
+### 3.4 Firestore & SharedPreferences Keys — NO CHANGE
 
-### 2.2 Enums and Model Restructuring
+These internal data keys are **not user-visible** and changing them would **break existing user data**. They should remain as-is and be documented as legacy naming.
 
-**Refactoring Complete** ✅
-
-```dart
-// IMPLEMENTED - Compliant
-enum MovementObservationType {
-  kneeCave,        // User-facing: "Knee Inward Pattern"
-  depth,           // User-facing: "Limited Depth"
-  forwardLean,     // User-facing: "Forward Lean"
-  heelRise,        // User-facing: "Heel Lift"
-  hipDrop,         // "Hip Drop"
-  excessiveSway,   // User-facing: "Sway Pattern"
-  armFallForward,  // User-facing: "Arms Forward"
-  limitedRotation, // User-facing: "Limited Rotation"
-  excessiveKneeBend, // User-facing: "Knee-Dominant Pattern"
-  // ... 11 total observation types
-}
-
-class MovementObservation {
-  final ObservationIntensity intensity;  // minimal, moderate, significant
-  final String description;  // Educational, observational language
-  final MovementObservationType type;
-  // Descriptions frame as "common variations" not dysfunctions
-}
-```
-
-**Key principle:** Remove any language that suggests a movement pattern is "wrong," "faulty," or "needs fixing."
-
-### 2.3 Mandatory Disclaimers
-
-Add to **every** results/observation screen:
-
-```dart
-const String _wellnessDisclaimer = '''
-IMPORTANT: This app provides general fitness feedback for educational and 
-entertainment purposes only. 
-
-• NOT a medical device
-• NOT a substitute for professional medical advice
-• NOT intended to diagnose, treat, or prevent any condition
-• NOT a replacement for consultation with healthcare providers
-
-If you have pain, injury, or medical concerns, consult a qualified 
-healthcare professional before using this app or starting any exercise program.
-''';
-```
-
-**Placement Required In:**
-- Results screen
-- Settings/About screen
-- First-time user onboarding
-- Any screen showing observations or recommendations
-- App Store description
-
-### 2.4 Exercise Recommendation Architecture
-
-**CURRENT PROBLEM:**
-Exercise selection is tied to detected faults → implies these exercises "fix" the faults
-
-**REQUIRED CHANGE:**
-Decouple suggestions from fault analysis:
-
-```dart
-// OLD - Problematic binding
-Map<FaultType, List<Exercise>> faultToExercises = {
-  FaultType.kneeCave: [/* exercises to "fix" it */],
-  // ...
-};
-
-// NEW - General suggestions
-class GeneralExerciseLibrary {
-  static const List<Exercise> movementVariationExercises = [
-    // General exercises for movement exploration
-    // NOT tied to specific detected patterns
-  ];
-  
-  // Can still show exercises, but frame as:
-  // "Here are some exercises people practice"
-  // NOT "You should do these because we detected..."
-}
-```
+| Location | Key | Action |
+|---|---|---|
+| `firestore_service.dart` | `.collection('screens')` (×3) | Keep. Legacy naming. |
+| SharedPreferences | `'screen_history'` | Keep. Legacy naming. |
+| SharedPreferences | `'last_screen_result'` | Keep. Legacy naming. |
 
 ---
 
-## 3. What To Avoid Going Forward
+## 4. Disclaimer Requirements
 
-### 3.1 Language Red Flags
+### 4.1 Current Disclaimer (Results Screen) ✅
 
-**NEVER use:**
-- "Treatment," "therapy," "therapeutic"
-- "Correction," "corrective," "fix"
-- "Dysfunction," "abnormality," "pathological"
-- "Rehabilitation," "rehab," "prehab"
-- "Injury prevention" (implies medical claim)
-- "Diagnosis," "symptom," "disease"
-- "Clinical," "medical assessment," "screening" (in medical context)
-- "Severity" with medical implications
+```
+IMPORTANT: This app provides general fitness feedback for educational purposes only.
+• NOT a medical device
+• NOT medical advice
+• Consult a healthcare provider if you have pain or injury concerns
+```
 
-### 3.2 Claims To Avoid
+### 4.2 Additional Disclaimer Placements Required
 
-**NEVER claim that:**
-- The app can diagnose movement problems or injuries
-- Exercises will prevent injury or treat conditions
-- The app is doctor-recommended or clinically proven
-- Observations indicate medical pathology
-- The app should be used instead of seeing a healthcare provider
-- Users with specific medical conditions should use this app
-- The app can detect disease or health status
+| Location | Status | Priority |
+|---|---|---|
+| Results screen (bottom of view) | ✅ Done | — |
+| App Store description (first paragraph) | ❌ Not done | 🔴 Before submission |
+| Onboarding flow (goal selection step) | ❌ Not done | 🟡 Before submission |
+| Profile screen (About / Legal row) | ❌ Not done | 🟡 Before submission |
+| Privacy policy page | ❌ Not done | 🔴 Before submission |
+| Terms of service | ❌ Not done | 🔴 Before submission |
 
-### 3.3 Feature Development Guidelines
+---
 
-When adding new features, ask:
+## 5. Language Guidelines
 
-1. **Does this claim diagnose or assess medical status?** → AVOID
-2. **Does this suggest therapeutic intent?** → AVOID
-3. **Would a healthcare provider consider this medical?** → AVOID
-4. **Is it framed as general fitness education?** → ✓ OK
-5. **Could it help someone avoid seeing a doctor?** → AVOID
-6. **Would a reasonable user think this is medical advice?** → AVOID/CLARIFY
+### 5.1 Prohibited Terms — Never Use in User-Facing Text
 
-### 3.4 Marketing & Promotion
+| ❌ Prohibited | ✅ Use Instead |
+|---|---|
+| Screen / screening (medical sense) | Audit / movement audit |
+| Prehab / rehabilitation / rehab | Fitness suggestions / exercise ideas |
+| Fault / fault detection | Observation / movement observation |
+| Corrective exercise / correction | Suggested exercise / exercise variation |
+| Dysfunction / abnormality | Movement pattern / variation |
+| Diagnose / diagnosis / assessment | Observe / feedback / analysis |
+| Treatment / therapy / therapeutic | Suggestion / guidance / educational |
+| Severity (mild/moderate/significant) | Intensity (minimal/moderate/significant) |
+| Injury prevention / prevent injury | Move with confidence / movement quality |
+| Prescribe / prescription | Suggest / recommendation |
+| Clinical / medical | Educational / fitness-focused |
+| Fix / correct / cure | Explore / practice / develop |
 
-**App Store Description:**
+### 5.2 Compliant Framing Examples
+
+| ❌ Non-Compliant | ✅ Compliant |
+|---|---|
+| "We detected 3 faults in your squat" | "We observed 3 patterns in your squat" |
+| "Corrective exercises for knee cave" | "Exercises you might find helpful" |
+| "Reduce your injury risk" | "Explore your movement quality" |
+| "This exercise will fix your hip drop" | "This exercise explores hip stability" |
+| "Prehab plan to prevent knee injuries" | "Suggested exercises for your movement profile" |
+| "Stay injury-free" | "Move with confidence" |
+| "We prescribe corrective exercises" | "We suggest exercises based on your patterns" |
+
+### 5.3 Safe Claims
+
+- ✅ "Explore your movement patterns with AI-powered analysis"
+- ✅ "Get feedback on your form and movement variations"
+- ✅ "Suggested exercises based on your movement profile"
+- ✅ "Track your movement quality over time"
+- ✅ "Educational feedback for fitness enthusiasts"
+- ✅ "Developed with input from fitness professionals"
+
+---
+
+## 6. App Store & Marketing Rules
+
+### 6.1 App Store Category
+- ✅ List under **Health & Fitness** (general category)
+- ❌ Never list under **Medical**
+
+### 6.2 App Store Description
+- Must include disclaimer in the **first paragraph**
 - ❌ "Assess your movement for injury prevention"
 - ✅ "Explore your movement patterns with AI-powered analysis"
-
-- ❌ "Correct faulty movement patterns"
-- ✅ "Get feedback on movement variations and exercise suggestions"
-
 - ❌ "Recommended by physical therapists"
 - ✅ "Developed with fitness professionals"
 
-**Social Media / Advertising:**
+### 6.3 Advertising & Social Media
 - Never target people with injuries or medical conditions
-- Never claim health benefits
-- Never compare to professional assessment
-- Always include disclaimer with any claims
+- Never claim health or therapeutic benefits
+- Never compare to professional clinical assessment
+- Never use before/after injury narratives
+- Always include disclaimer with any performance claims
 
 ---
 
-## 4. Regulatory Compliance Checklist
+## 7. Feature Development Checklist
 
-Use this checklist before any major feature release or app store submission:
+Before shipping **any** new feature involving user feedback or recommendations:
 
-### UI & Copy
-- [x] ✅ No "prehab," "therapy," "correction" terminology
-- [x] ✅ All observations framed as educational, not diagnostic
-- [x] ✅ Disclaimer visible on results screen
-- [x] ✅ No medical or therapeutic language in button labels
-- [x] ✅ Exercise descriptions don't claim health benefits
+- [ ] No medical/therapeutic terminology in user-facing strings
+- [ ] Observations framed as educational, not diagnostic
+- [ ] Disclaimer visible where feedback is shown
+- [ ] No claims that exercises "fix", "correct", or "treat" anything
+- [ ] Exercise suggestions not framed as prescriptions
+- [ ] Language is neutral and descriptive, not clinical
+- [ ] No targeting of users with medical conditions
 
-### Models & Code
-- [x] ✅ No `Fault` or `FaultType` enums (use MovementObservationType)
-- [x] ✅ No severity mapping tied to medical implications (ObservationIntensity)
-- [x] ✅ Exercise recommendations decoupled from detected observations
-- [x] ✅ No clinical terminology in class/variable names
-
-### Notifications
-- [ ] Push notifications use "fitness suggestion" not "correction needed" (Phase 2)
-- [ ] No language suggesting exercises fix something (Phase 2)
-- [ ] No medical terminology (Phase 2)
-
-### Documentation
-- [ ] README updated with wellness framing (Phase 2)
-- [ ] BILLING.md and legal docs reflect wellness positioning (Phase 2)
-- [x] ✅ No medical claims in internal code documentation
-- [x] ✅ Comments in code updated to use "observation" terminology
-
-### App Store Metadata
-- [ ] Category set to "Health & Fitness" not "Medical" (Phase 2)
-- [ ] Description has prominent disclaimer (Phase 2)
-- [ ] No health benefit claims (Phase 2)
-- [ ] Screenshots don't use fault/correction language (Phase 2)
-- [ ] Privacy policy clarifies app is not medical (Phase 2)
-
-### Analytics & Error Messages
-- [x] ✅ No error messages suggesting medical implications
-- [x] ✅ Code uses "observation" terminology in logging
-- [x] ✅ No health-related data exposed in internal naming
+**Key question:** *"Would a reasonable user believe this is medical advice?"*  
+If yes → reframe or add disclaimer.
 
 ---
 
-## 5. Implementation Priority
+## 8. Implementation Phases
 
-### Phase 1: Critical ✅ **COMPLETED (April 15, 2026)**
-1. ✅ Create movement_observation.dart (replaces fault.dart)
-2. ✅ Update FaultType → MovementObservationType throughout code (25+ files)
-3. ✅ Add comprehensive disclaimer to results_screen.dart
-4. ✅ Update all UI strings with revised terminology (300+ replacements)
-5. ✅ Update movement_suggestions_generator.dart (replaces prehab_generator.dart)
-6. ✅ Create fitness_plan.dart (replaces prehab_plan.dart)
-7. ✅ Delete orphaned old files (fault.dart, prehab_plan.dart, prehab_generator.dart)
+### Phase 1 ✅ COMPLETE — Core Model Refactoring
 
-**Files Updated:**
-- 5 screen files (results, screen, home, history, history_tile)
-- 3 widget files (observation_card, exercise_card, pose_painter)
-- 5 analyzer files (squat, lunge, hip_hinge, single_leg_stand, shoulder_rotation)
-- 2 model files (screen_result, movement observation)
-- 1 generator file (movement_suggestions_generator)
+All `Fault`/`FaultType` types replaced with `MovementObservation`/`MovementObservationType`. Old files deleted. Results disclaimer added. "Screen" → "Audit" in all user-facing strings.
 
-### Phase 2: Important (Next Release - Pending)
-1. Update push notification messages
-2. Update app store metadata (category, description, screenshots)
-3. Review and update all marketing materials
-4. Update README.md and other documentation
-5. Submit updated app to app stores
+### Phase 2 ❌ TODO — Remaining String & Identifier Cleanup
 
-### Phase 3: Ongoing
-1. Code review checklist for new features (TEMPLATE PROVIDED IN SECTION 8)
-2. Quarterly compliance audit
-3. Monitor app store policy changes
+| # | Task | Priority |
+|---|---|---|
+| 1 | Fix home_screen "How it works" step 3 text (*"detect faults… prescribe corrective"*) | 🔴 Critical |
+| 2 | Fix onboarding goal options (*"injury-free"*, *"Fix the faults"*) | 🔴 Critical |
+| 3 | Fix history_screen "COMMON FAULTS" heading | 🟡 High |
+| 4 | Fix history_screen "X fault(s)" label | 🟡 High |
+| 5 | Rename `prehabLocked` → `suggestionsLocked` across codebase | 🟡 Medium |
+| 6 | Rename `fault_card.dart` → `observation_card.dart` | ⚪ Low |
+| 7 | Rename `_PrehabExerciseTile` → `_SuggestedExerciseTile` | ⚪ Low |
+| 8 | Rename `faultSummary` → `observationSummary` in home_screen | ⚪ Low |
+| 9 | Clean up code comments with stale terminology | ⚪ Low |
 
----
+### Phase 3 ❌ TODO — App Store & Legal
 
-## 6. Technical Details by Component
+| # | Task |
+|---|---|
+| 1 | Write App Store description with prominent disclaimer |
+| 2 | Create/update privacy policy stating app is not a medical device |
+| 3 | Create terms of service with wellbeing framing |
+| 4 | Set App Store category to Health & Fitness (not Medical) |
+| 5 | Ensure all screenshots use compliant language |
+| 6 | Add disclaimer step to onboarding flow |
+| 7 | Add "About / Legal" section in Profile screen |
+| 8 | Update README.md with wellness positioning |
 
-### 6.1 Models Layer
+### Phase 4 — Ongoing Governance
 
-**[lib/models/](lib/models/)** ✅ COMPLETE
-
-New files created:
-- ✅ `fitness_plan.dart` (replaces prehab_plan.dart)
-- ✅ `movement_observation.dart` (replaces fault.dart)
-
-Files updated:
-- ✅ `screen_result.dart` - now uses observations instead of faults
-- ✅ All analysis files - use MovementObservationType
-
-### 6.2 Analysis Layer
-
-**[lib/analysis/](lib/analysis/)** ✅ COMPLETE
-
-New file created:
-- ✅ `movement_suggestions_generator.dart` (replaces prehab_generator.dart)
-
-All analysis files updated:
-- ✅ `hip_hinge_analyser.dart` - uses MovementObservationType
-- ✅ `lunge_analyser.dart` - uses MovementObservationType
-- ✅ `shoulder_rotation_analyser.dart` - uses MovementObservationType
-- ✅ `single_leg_stand_analyser.dart` - uses MovementObservationType
-- ✅ `squat_analyser.dart` - uses MovementObservationType
-
-**Implementation:** Suggestions are generated from observations but framed as general fitness variations, not corrections for detected "faults."
-
-### 6.3 Screens Layer
-
-**[lib/screens/](lib/screens/)** ✅ COMPLETE
-
-Critical updates completed:
-- ✅ `results_screen.dart` - Added disclaimer, updated labels to "Movement Observations" and "Suggested Exercises"
-- ✅ `history_screen.dart` - Updated terminology with user-friendly observation names
-- ✅ `screen_screen.dart` - Updated to use activeObservations, removed prehabLocked gating
-- ✅ `home_screen.dart` - Updated labels and removed org-based paywall UI
-- ✅ `screen_history_tile.dart` - Updated to display observation count
-
-### 6.4 Services Layer
-
-**[lib/services/](lib/services/)** ⏳ PHASE 2
-
-- `notification_service.dart` - Update notification content (Phase 2)
-- Add notification disclaimer for reminders (Phase 2)
+| Task | Cadence |
+|---|---|
+| Codebase terminology audit (run validation grep below) | Every release |
+| App Store policy review (Apple / Google) | Quarterly |
+| FDA / MHRA / EU MDR guidance monitoring | Quarterly |
+| Feature compliance review | Every PR touching user feedback |
 
 ---
 
-## 7. Testing & Validation
+## 9. Compliance Validation Commands
 
-After making changes, test:
+Run these to find remaining non-compliant terms:
 
-1. **Language Audit**: Search codebase for old terminology
-   ```bash
-   grep -r "prehab\|fault\|correction\|therapy" lib/
-   ```
+```bash
+# 🔴 User-facing strings (critical — must be zero before submission)
+grep -rn "faults\|corrective\|prescribe\|injury-free\|injury risk\|prehab\|COMMON FAULTS\|Fix the fault" lib/ --include="*.dart"
 
-2. **User Flow**: Walk through entire app experience
-   - Does any view suggest medical intent?
-   - Are disclaimers visible and clear?
-   - Is messaging consistently neutral?
+# 🟡 Code identifiers (medium — clean up before submission)
+grep -rn "prehabLocked\|_PrehabExerciseTile\|faultSummary\|fault_card" lib/ --include="*.dart"
 
-3. **App Store Review**: Submit with updated metadata
-   - Include compliance notes if helpful
-   - Be prepared to clarify app is wellness-focused
+# ⚪ Stale comments (low — clean up when convenient)
+grep -rn "prehab plan\|faults only\|severity scales\|top prehab" lib/ --include="*.dart"
+```
 
-4. **Accessibility**: Ensure disclaimers are accessible
-   - Visible to all users
-   - Not buried in fine print
-   - Readable contrast ratio
+All three commands should return **no results** when fully compliant.
 
 ---
 
-## 8. Ongoing Governance
+## 10. Regulatory References
 
-### Future Feature Development
-
-Before implementing new features involving user data analysis:
-
-1. **Ask the Questions:**
-   - Could this be used to diagnose or assess medical conditions?
-   - Would regulators consider this medical?
-   - Is the intent educational or therapeutic?
-
-2. **Documentation Review:**
-   - Does feature description avoid medical claims?
-   - Are disclaimers prominent enough?
-   - Could terminology be misinterpreted?
-
-3. **Regulatory Check:**
-   - Monitor FDA/FTC guidance on health/fitness apps
-   - Track iOS/Android health category requirements
-   - Stay informed on "health claims" regulations
-
-### Code Review Checklist
-
-Every pull request touching user-facing feedback or recommendations should verify:
-- [ ] No medical/therapeutic terminology
-- [ ] Observations framed as educational
-- [ ] Disclaimer visible if needed
-- [ ] No claims that suggest medical assessment
-- [ ] Language is neutral and descriptive
+| Authority | Guidance | Key Point |
+|---|---|---|
+| **FDA (US)** | *General Wellness: Policy for Low Risk Devices* (2019) | Apps promoting general wellness without claiming to treat/diagnose are not regulated as medical devices |
+| **MHRA (UK)** | *Medical Device Stand-Alone Software Including Apps* (2023) | Software is a medical device if it interprets data for diagnosis/treatment; general fitness feedback is exempt |
+| **EU MDR** | Article 2, Regulation (EU) 2017/745 | Medical device definition requires intended medical purpose; general wellness is excluded |
+| **Apple** | App Store Review Guidelines §5.1.3 | Health apps must not make medical claims without appropriate regulatory clearance |
+| **Google Play** | Health & Fitness App Policy (2024) | Apps making health claims must comply with local regulations; general fitness is permitted |
+| **FTC (US)** | Health Product Compliance Guidance | Health benefit claims must be substantiated; general fitness education is lower risk |
 
 ---
 
-## 9. Reference Materials
+## Document History
 
-### Regulatory Guidance
-- **FDA**: "Is the Product a Medical Device?" guidance (FDA.gov)
-- **FTC**: Health/Fitness Claims Regulations
-- **Apple**: HealthKit and Medical Device Category Requirements
-- **Google Play**: Health & Fitness App Guidelines
-
-### Key Principle
-When in doubt, ask: **"Would a doctor classify this as medical assessment or therapy?"**
-
-If yes, reframe or remove. If no, ensure it's clear in your copy that it's not medical.
-
----
-
-## 10. Contacts & Escalation
-
-If uncertain about compliance:
-- Review with legal counsel experienced in health app regulations
-- Consult FDA guidance documents before major features
-- Monitor app store policy updates quarterly
-- Stay in compliance discussions with platform support teams
-
----
-
-## Document Version
-
-- **Version**: 2.0
-- **Date Created**: April 2026
-- **Last Updated**: April 15, 2026 - Phase 1 Implementation Complete
-- **Implementation Status**: Phase 1 ✅ COMPLETE | Phase 2 ⏳ PENDING
-- **Next Review**: Before app store submission (Phase 2) or quarterly
+| Version | Date | Changes |
+|---|---|---|
+| 1.0 | April 2026 | Initial document |
+| 2.0 | April 15, 2026 | Phase 1 implementation complete |
+| 3.0 | April 15, 2026 | Full codebase audit; accurate status of all remaining issues; added Phase 2/3 action items with line-level references; regulatory references; validation commands; language guidelines |

@@ -31,7 +31,7 @@ extension MovementTypeX on MovementType {
       case MovementType.overheadSquat:
         return 'Overhead Squat';
       case MovementType.fullScreen:
-        return 'Full Screen';
+        return 'Full Audit';
     }
   }
 

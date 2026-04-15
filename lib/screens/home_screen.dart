@@ -23,13 +23,13 @@ import 'profile_screen.dart';
 const _kPrefLastResult = 'last_screen_result';
 const _kPrefHistory = 'screen_history';
 const _kHowItWorks = 'HOW IT WORKS';
-const _kStartLabel = 'Start a screen';
+const _kStartLabel = 'Start an audit';
 const _kStartSub = 'Takes about 2 minutes';
-const _kScreensDone = 'Screens done';
+const _kScreensDone = 'Audits done';
 const _kAvgScore = 'Avg score';
 const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
-const _kNoSuggestions = 'Complete a screen to get exercise suggestions.';
-const _kLastScreen = 'LAST SCREEN';
+const _kNoSuggestions = 'Complete an audit to get exercise suggestions.';
+const _kLastScreen = 'LAST AUDIT';
 
 Color _scoreColor(int score) {
   if (score >= 80) return PoiseColors.accent;
@@ -129,7 +129,7 @@ class _PoiseBottomNav extends StatelessWidget {
       Icons.person,
     ];
 
-    const labels = ['Home', 'Screen', 'Progress', 'Profile'];
+    const labels = ['Home', 'Audit', 'Progress', 'Profile'];
 
     return Container(
       height: 72 + MediaQuery.of(context).padding.bottom,
@@ -583,10 +583,10 @@ class _LastScreenCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Show up to two fault names, joined with " / ".
-    final faultSummary = result.faults.length >= 2
-        ? '${result.faults[0].name} / ${result.faults[1].name}'
-        : result.faults.isNotEmpty
-            ? result.faults[0].name
+    final faultSummary = result.observations.length >= 2
+        ? '${result.observations[0].name} / ${result.observations[1].name}'
+        : result.observations.isNotEmpty
+            ? result.observations[0].name
             : '';
 
     return Container(

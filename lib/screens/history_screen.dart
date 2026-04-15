@@ -244,7 +244,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: _StatTile(
                 value: '${_history.length}',
                 valueColor: PoiseColors.accent,
-                label: 'Screens',
+                label: 'Audits',
               ),
             ),
             const SizedBox(width: 8),
@@ -277,10 +277,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Expanded(child: _CategoryTile(label: 'SYMMETRY', score: _symmetryScore)),
             ]),
 
-            if (faultEntries.isNotEmpty) ...[
+            if (observationEntries.isNotEmpty) ...[
               const SizedBox(height: 12),
               _FaultFrequencyCard(
-                faults: faultEntries,
+                observations: observationEntries,
                 totalSessions: _history.length,
               ),
             ],
@@ -288,7 +288,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           const SizedBox(height: 16),
           Text(
-            'PAST SCREENS',
+            'PAST AUDITS',
             style: GoogleFonts.dmSans(
               fontSize: 11,
               fontWeight: FontWeight.w500,
@@ -310,13 +310,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'No screens yet.',
+                    'No audits yet.',
                     style: GoogleFonts.dmSans(
                         fontSize: 14, color: PoiseColors.muted),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Complete your first screen to track progress.',
+                    'Complete your first audit to track progress.',
                     style: GoogleFonts.dmSans(
                         fontSize: 12, color: PoiseColors.muted),
                   ),
@@ -527,11 +527,11 @@ class _CategoryTile extends StatelessWidget {
 // Bar width = fraction of sessions in which that fault appeared.
 // Color reflects frequency: rare = green, common = red.
 class _FaultFrequencyCard extends StatelessWidget {
-  final List<MapEntry<FaultType, int>> faults;
+  final List<MapEntry<MovementObservationType, int>> observations;
   final int totalSessions;
 
   const _FaultFrequencyCard(
-      {required this.faults, required this.totalSessions});
+      {required this.observations, required this.totalSessions});
 
   @override
   Widget build(BuildContext context) {
@@ -554,7 +554,7 @@ class _FaultFrequencyCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ...faults.map((entry) {
+          ...observations.map((entry) {
             final fraction = entry.value / totalSessions;
             // Invert fraction so high-frequency faults get a low "score" (red).
             final barColor = _scoreColor(100 - (fraction * 100).round());
@@ -693,7 +693,7 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final faultCount = result.faults.length;
+    final faultCount = result.observations.length;
     final scoreColor = _scoreColor(result.score);
 
     return GestureDetector(

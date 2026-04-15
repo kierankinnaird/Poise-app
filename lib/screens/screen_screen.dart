@@ -26,7 +26,7 @@ const int _kTargetReps = 5;
 const int _kCountdownSeconds = 10;
 const int _kTransitionCountdownSeconds = 5;
 const _kGetReady = 'Get ready.';
-const _kEndScreen = 'End screen';
+const _kEndScreen = 'End audit';
 const _kMovementComplete = 'Movement complete';
 const _kUpNext = 'Up next';
 const _kReady = 'I\'m ready';
@@ -42,11 +42,13 @@ const _kAllMovements = [
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
+  final bool prehabLocked;
 
   const ScreenScreen({
     super.key,
     required this.sport,
     required this.goal,
+    this.prehabLocked = false,
   });
 
   @override
@@ -68,9 +70,9 @@ class _ScreenScreenState extends State<ScreenScreen>
 
   // Movement sequencing
   int _currentMovementIndex = 0;
-  final List<Fault> _allFaults = [];
+  final List<MovementObservation> _allObservations = [];
   bool _showingTransition = false;
-  int _transiMovementObservation> _allObservation_kTransitionCountdownSeconds;
+  int _transitionCountdown = _kTransitionCountdownSeconds;
   Timer? _transitionTimer;
 
   // Per-movement countdown
@@ -380,7 +382,7 @@ class _ScreenScreenState extends State<ScreenScreen>
 
   void _onMovementComplete() {
     if (_showingTransition) return;
-    _allFaults.addAll(_buildFaultList());
+    _allObservations.addAll(_buildObservationList());
     _analysisActive = false;
     _countdownTimer?.cancel();
     _holdTimer?.cancel();
@@ -450,7 +452,7 @@ class _ScreenScreenState extends State<ScreenScreen>
     // data. A completed prior movement sets _currentMovementIndex > 0 or adds
     // to _allFaults. _currentReps > 0 means reps were done in the current movement.
     final hasData =
-        _currentMovementIndex > 0 || _currentReps > 0 || _allFaults.isNotEmpty;
+        _currentMovementIndex > 0 || _currentReps > 0 || _allObservations.isNotEmpty;
     if (!hasData) {
       if (mounted) {
         showDialog<void>(
@@ -515,7 +517,7 @@ class _ScreenScreenState extends State<ScreenScreen>
     _countdownTimer?.cancel();
     _holdTimer?.cancel();
     _transitionTimer?.cancel();
-    _allFaults.addAll(_buildFaultList());
+    _allObservations.addAll(_buildObservationList());
     _navigateToResults();
   }
 
@@ -531,17 +533,17 @@ class _ScreenScreenState extends State<ScreenScreen>
     super.dispose();
   }
 
-  String _faultLabel(FaultType type) {
+  String _observationLabel(MovementObservationType type) {
     switch (type) {
-      case FaultType.kneeCave: return 'Knee cave';
-      case FaultType.depth: return 'Depth';
-      case FaultType.forwardLean: return 'Forward lean';
-      case FaultType.heelRise: return 'Heel rise';
-      case FaultType.hipDrop: return 'Hip drop';
-      case FaultType.excessiveSway: return 'Excessive sway';
-      case FaultType.armFallForward: return 'Arms falling';
-      case FaultType.limitedRotation: return 'Limited reach';
-      case FaultType.excessiveKneeBend: return 'Knee bend';
+      case MovementObservationType.kneeCave: return 'Knee cave';
+      case MovementObservationType.depth: return 'Depth';
+      case MovementObservationType.forwardLean: return 'Forward lean';
+      case MovementObservationType.heelRise: return 'Heel rise';
+      case MovementObservationType.hipDrop: return 'Hip drop';
+      case MovementObservationType.excessiveSway: return 'Excessive sway';
+      case MovementObservationType.armFallForward: return 'Arms falling';
+      case MovementObservationType.limitedRotation: return 'Limited reach';
+      case MovementObservationType.excessiveKneeBend: return 'Knee bend';
     }
   }
 
@@ -672,7 +674,7 @@ class _ScreenScreenState extends State<ScreenScreen>
               left: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: _relevantFaults.map((type) {
+                children: _relevantObservations.map((type) {
                   final isActive = _analysisActive && _activeObservations.contains(type);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -686,7 +688,7 @@ class _ScreenScreenState extends State<ScreenScreen>
                             : null,
                       ),
                       child: Text(
-                        _faultLabel(type),
+                        _observationLabel(type),
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,

@@ -29,7 +29,7 @@ const _kObservationsLabel = 'MOVEMENT OBSERVATIONS';
 const _kNoObservationsTitle = 'No observations.';
 const _kNoObservationsBody = 'Great work!';
 const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
-const _kScreenAgain = 'Screen again';
+const _kScreenAgain = 'Audit again';
 const _kViewProgress = 'View my progress';
 const _kBackToHome = 'Back to home';
 
