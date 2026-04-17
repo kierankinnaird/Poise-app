@@ -6,14 +6,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../analysis/movement_suggestions_generator.dart';
 import '../models/movement_observation.dart';
 import '../models/movement_type.dart';
 import '../models/screen_result.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/exercise_card.dart';
 import '../widgets/fault_card.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
@@ -28,7 +26,6 @@ const _kMovementScore = 'Movement score';
 const _kObservationsLabel = 'MOVEMENT OBSERVATIONS';
 const _kNoObservationsTitle = 'No observations.';
 const _kNoObservationsBody = 'Great work!';
-const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
 const _kScreenAgain = 'Audit again';
 const _kViewProgress = 'View my progress';
 const _kBackToHome = 'Back to home';
@@ -62,14 +59,10 @@ class ResultsScreen extends StatefulWidget {
   // readOnly is true when viewing from history -- no save, no CTAs.
   final bool readOnly;
 
-  // prehabLocked is true for org members -- faults shown, plan hidden.
-  final bool prehabLocked;
-
   const ResultsScreen({
     super.key,
     required this.result,
     this.readOnly = false,
-    this.prehabLocked = false,
   });
 
   @override
@@ -174,7 +167,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final plan = MovementSuggestionsGenerator.generate(widget.result.observations);
     final score = widget.result.score;
     final scoreColor = _scoreColor(score);
 
@@ -308,41 +300,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 )
               else
                 ..._buildObservationCards(widget.result.observations),
-
-              const SizedBox(height: 24),
-
-              // Suggested exercises section
-              Text(
-                _kSuggestionsLabel,
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: PoiseColors.muted,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (plan!.exercises.isNotEmpty)
-                ...plan.exercises.map((exercise) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ExerciseCard(exercise: exercise),
-                    ))
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'No suggestions available. Great effort!',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      color: PoiseColors.muted,
-                    ),
-                  ),
-                ),
 
               const SizedBox(height: 24),
 

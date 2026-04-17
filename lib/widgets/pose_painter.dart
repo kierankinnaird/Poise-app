@@ -54,14 +54,12 @@ class PosePainterDelegate extends CustomPainter {
   final Size imageSize;
   final bool inSquat;
   final Set<MovementObservationType> activeObservations;
-  final bool isFrontCamera;
 
   PosePainterDelegate({
     required this.smoothedLandmarks,
     required this.imageSize,
     required this.inSquat,
     this.activeObservations = const {},
-    this.isFrontCamera = false,
   });
 
   // Build a set of connection key strings so I can look them up in O(1).
@@ -81,6 +79,18 @@ class PosePainterDelegate extends CustomPainter {
   Color get _baseColor {
     if (inSquat && activeObservations.isEmpty) return PoiseColors.accent;
     return PoiseColors.offWhite.withValues(alpha: 0.6);
+  }
+
+  // Replicates the BoxFit.cover transform applied to the camera preview.
+  // cover scales by the larger factor and centers, so landmarks must use
+  // the same scale + offset rather than separate x/y scale factors.
+  _CoverTransform _coverTransform(Size size) {
+    final scaleX = size.width / imageSize.width;
+    final scaleY = size.height / imageSize.height;
+    final scale = scaleX > scaleY ? scaleX : scaleY;
+    final offsetX = (size.width - imageSize.width * scale) / 2.0;
+    final offsetY = (size.height - imageSize.height * scale) / 2.0;
+    return _CoverTransform(scale, offsetX, offsetY);
   }
 
   @override
@@ -144,11 +154,11 @@ class PosePainterDelegate extends CustomPainter {
         }
       }
 
+      final t = _coverTransform(size);
       for (final entry in landmarks.entries) {
         final isError = errorJoints.contains(entry.key);
-        var x = entry.value.dx / imageSize.width * size.width;
-        final y = entry.value.dy / imageSize.height * size.height;
-        if (isFrontCamera) x = size.width - x;
+        final x = entry.value.dx * t.scale + t.offsetX;
+        final y = entry.value.dy * t.scale + t.offsetY;
         canvas.drawCircle(Offset(x, y), 4,
             isError ? errorDotPaint : baseDotPaint);
       }
@@ -166,19 +176,23 @@ class PosePainterDelegate extends CustomPainter {
     final start = landmarks[from];
     final end = landmarks[to];
     if (start == null || end == null) return;
-    var sx = start.dx / imageSize.width * size.width;
-    var ex = end.dx / imageSize.width * size.width;
-    if (isFrontCamera) {
-      sx = size.width - sx;
-      ex = size.width - ex;
-    }
+    final t = _coverTransform(size);
+    final sx = start.dx * t.scale + t.offsetX;
+    final ex = end.dx * t.scale + t.offsetX;
     canvas.drawLine(
-      Offset(sx, start.dy / imageSize.height * size.height),
-      Offset(ex, end.dy / imageSize.height * size.height),
+      Offset(sx, start.dy * t.scale + t.offsetY),
+      Offset(ex, end.dy * t.scale + t.offsetY),
       paint,
     );
   }
 
   @override
   bool shouldRepaint(PosePainterDelegate oldDelegate) => true;
+}
+
+class _CoverTransform {
+  final double scale;
+  final double offsetX;
+  final double offsetY;
+  const _CoverTransform(this.scale, this.offsetX, this.offsetY);
 }

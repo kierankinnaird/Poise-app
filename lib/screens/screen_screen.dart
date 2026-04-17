@@ -42,13 +42,11 @@ const _kAllMovements = [
 class ScreenScreen extends StatefulWidget {
   final String sport;
   final String goal;
-  final bool prehabLocked;
 
   const ScreenScreen({
     super.key,
     required this.sport,
     required this.goal,
-    this.prehabLocked = false,
   });
 
   @override
@@ -505,7 +503,6 @@ class _ScreenScreenState extends State<ScreenScreen>
         MaterialPageRoute(
           builder: (_) => ResultsScreen(
             result: result,
-            prehabLocked: widget.prehabLocked,
           ),
         ),
       );
@@ -611,13 +608,14 @@ class _ScreenScreenState extends State<ScreenScreen>
     final repsToGo = (_kTargetReps - _currentReps).clamp(0, _kTargetReps);
     final side = _activeSide;
     final movementNumber = _currentMovementIndex + 1;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
           // Camera preview fills the screen.
+          // Mirror horizontally for the front camera so the preview matches
+          // the skeleton overlay (which is also flipped in PosePainterDelegate).
           FittedBox(
             fit: BoxFit.cover,
             child: SizedBox(
@@ -635,7 +633,6 @@ class _ScreenScreenState extends State<ScreenScreen>
                 imageSize: imageSize,
                 inSquat: _inMovement,
                 activeObservations: Set.from(_activeObservations),
-                isFrontCamera: _controller?.description.lensDirection == CameraLensDirection.front,
               ),
             ),
 

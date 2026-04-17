@@ -7,9 +7,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../analysis/movement_suggestions_generator.dart';
 import '../models/movement_type.dart';
-import '../models/fitness_plan.dart';
 import '../models/screen_result.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
@@ -27,8 +25,6 @@ const _kStartLabel = 'Start an audit';
 const _kStartSub = 'Takes about 2 minutes';
 const _kScreensDone = 'Audits done';
 const _kAvgScore = 'Avg score';
-const _kSuggestionsLabel = 'SUGGESTED EXERCISES';
-const _kNoSuggestions = 'Complete an audit to get exercise suggestions.';
 const _kLastScreen = 'LAST AUDIT';
 
 Color _scoreColor(int score) {
@@ -266,7 +262,6 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
               builder: (_) => ScreenScreen(
                     sport: profile.sport,
                     goal: profile.goal,
-                    prehabLocked: profile.prehabLocked,
                   )))
           .then((_) {
         if (mounted) _loadData();
@@ -291,8 +286,6 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
     }
 
     final result = _lastResult;
-    final plan =
-        result != null ? MovementSuggestionsGenerator.generate(result.observations) : null;
 
     return Scaffold(
       backgroundColor: PoiseColors.background,
@@ -420,39 +413,6 @@ class _HomeHubScreenState extends State<_HomeHubScreen> {
                 ],
               ),
 
-              const SizedBox(height: 20),
-
-              Text(
-                _kSuggestionsLabel,
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: PoiseColors.muted,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (plan == null || plan.exercises.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: PoiseColors.card,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _kNoSuggestions,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: PoiseColors.muted,
-                    ),
-                  ),
-                )
-              else
-                // I show only the first exercise on the home screen --
-                // the full plan is on the results screen.
-                _PrehabExerciseTile(exercise: plan.exercises.first),
-
               const SizedBox(height: 32),
             ],
           ),
@@ -503,8 +463,8 @@ class _HowItWorksCard extends StatelessWidget {
           const SizedBox(height: 12),
           _HowItWorksStep(
             number: '3',
-            title: 'Get your score and exercise plan',
-            body: 'We detect movement faults and prescribe corrective exercises tailored to what we find.',
+            title: 'Get your movement score',
+            body: 'We detect movement faults and show your score with detailed notes on what we observed.',
           ),
         ],
       ),
@@ -691,45 +651,3 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _PrehabExerciseTile extends StatelessWidget {
-  final Exercise exercise;
-
-  const _PrehabExerciseTile({required this.exercise});
-
-  @override
-  Widget build(BuildContext context) {
-    final setsLabel = exercise.duration != null
-        ? '${exercise.sets} · ${exercise.duration}'
-        : exercise.sets;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: PoiseColors.card,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            exercise.name,
-            style: GoogleFonts.syne(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: PoiseColors.offWhite,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            setsLabel,
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              color: PoiseColors.accent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
